@@ -5,6 +5,7 @@ import Landing from './pages/Landing.jsx'
 import Login from './pages/auth/Login.jsx'
 import SignUp from './pages/auth/SignUp.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import SecurityTest from './pages/SecurityTest.jsx'
 
 /**
  * Route table.
@@ -25,6 +26,8 @@ export default function App() {
         {/* Authenticated routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
+          {/* ⚠️ Temporary Phase 2 test harness — removed in Phase 3 */}
+          <Route path="/security-test" element={<SecurityTest />} />
         </Route>
       </Routes>
     </AuthProvider>
