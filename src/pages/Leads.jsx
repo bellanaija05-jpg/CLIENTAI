@@ -2,15 +2,23 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import { useLeads } from '../hooks/useLeads.js'
 import { deleteLead } from '../data/leads.js'
+import { LEAD_STATUSES } from '../lib/schemas.js'
 import ConfirmDialog from '../components/ui/ConfirmDialog.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import { formatDate, formatValue } from '../utils/format.js'
 
+// Sentinel for the status filter's "All statuses" option.
+const ALL_STATUSES = 'ALL'
+
 /**
- * Leads list (Stages 1–4): list, create entry, edit entry, and delete
- * with confirmation. Search/filter (Stage 5) comes next.
- * The four UI states come from useLeads(): loading, error, empty, list.
+ * Leads list (Stages 1–5): list, create/edit/delete entries, plus
+ * client-side search and status filtering (Stage 5).
+ *
+ * Data states come from useLeads(): loading, error, empty, list.
+ * Search + status are LOCAL UI state applied as a derived filter over
+ * the already-authorized leads — RLS decided what is in `leads`; the
+ * filter only decides what is visible. No extra Supabase requests.
  */
 export default function Leads() {
   const { leads, isLoading, error, refresh } = useLeads()
@@ -20,6 +28,38 @@ export default function Leads() {
   const [pendingDelete, setPendingDelete] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
+
+  // Search + status filter (Stage 5) — local UI state, never sent to
+  // Supabase. The status select mirrors the DB enum via LEAD_STATUSES.
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState(ALL_STATUSES)
+
+  // DERIVED during render (no memoization at this data scale): the
+  // original leads array is never mutated. Search matches name,
+  // company, and email — case-insensitive, trimmed, partial. Optional
+  // chaining guards the nullable company/email columns.
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const visibleLeads = (leads ?? []).filter((lead) => {
+    if (statusFilter !== ALL_STATUSES && lead.status !== statusFilter) {
+      return false
+    }
+    if (normalizedQuery === '') return true
+    return (
+      lead.name?.toLowerCase().includes(normalizedQuery) ||
+      lead.company?.toLowerCase().includes(normalizedQuery) ||
+      lead.email?.toLowerCase().includes(normalizedQuery)
+    )
+  })
+  const hasActiveFilters =
+    normalizedQuery !== '' || statusFilter !== ALL_STATUSES
+
+  // The toolbar is only meaningful once real leads exist.
+  const showToolbar = !isLoading && !error && leads !== null && leads.length > 0
+
+  function clearFilters() {
+    setSearchQuery('')
+    setStatusFilter(ALL_STATUSES)
+  }
 
   async function handleConfirmDelete() {
     if (!pendingDelete) return
@@ -64,6 +104,41 @@ export default function Leads() {
         </Link>
       </div>
 
+      {showToolbar && (
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search name, company, or email…"
+            aria-label="Search leads"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 sm:max-w-xs"
+          />
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            aria-label="Filter by status"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 sm:w-48"
+          >
+            <option value={ALL_STATUSES}>All statuses</option>
+            {LEAD_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 sm:ml-auto"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
+
       {isLoading && (
         <div className="mt-16 flex justify-center">
           <Spinner />
@@ -96,7 +171,33 @@ export default function Leads() {
         </div>
       )}
 
-      {!isLoading && !error && leads !== null && leads.length > 0 && (
+      {/* Leads exist, but the active search/status filters match none.
+          Deliberately DIFFERENT from "No leads yet": the user HAS leads
+          — they are just hidden by the current filters. */}
+      {!isLoading &&
+        !error &&
+        leads !== null &&
+        leads.length > 0 &&
+        visibleLeads.length === 0 && (
+          <div className="mt-10">
+            <EmptyState
+              icon="🔍"
+              title="No leads match your filters"
+              description="Leads exist, but none match the current search and status. Try different words or clear the filters."
+              action={
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Clear filters
+                </button>
+              }
+            />
+          </div>
+        )}
+
+      {!isLoading && !error && leads !== null && visibleLeads.length > 0 && (
         <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead>
@@ -114,7 +215,7 @@ export default function Leads() {
               </tr>
             </thead>
             <tbody>
-              {leads.map((lead) => (
+              {visibleLeads.map((lead) => (
                 <tr
                   key={lead.id}
                   className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60"

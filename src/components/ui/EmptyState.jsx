@@ -1,10 +1,16 @@
 /**
- * Shared empty-state block: icon + title + short description.
+ * Shared empty-state block: icon + title + short description, plus an
+ * optional action element (e.g. a "Clear filters" button).
  * Pure presentation — no data fetching, no state. Used wherever a
  * legitimately empty list needs a friendly explanation (leads today;
  * follow-ups, activities, and search results later).
  */
-export default function EmptyState({ icon = '📋', title, description }) {
+export default function EmptyState({
+  icon = '📋',
+  title,
+  description,
+  action = null,
+}) {
   return (
     <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
       <div className="text-4xl" aria-hidden="true">
@@ -16,6 +22,7 @@ export default function EmptyState({ icon = '📋', title, description }) {
           {description}
         </p>
       )}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   )
 }
