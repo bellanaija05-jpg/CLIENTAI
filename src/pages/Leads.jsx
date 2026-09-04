@@ -1,18 +1,44 @@
+import { useState } from 'react'
 import { Link } from 'react-router'
 import { useLeads } from '../hooks/useLeads.js'
+import { deleteLead } from '../data/leads.js'
+import ConfirmDialog from '../components/ui/ConfirmDialog.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import { formatDate, formatValue } from '../utils/format.js'
 
 /**
- * Leads list — Stage 1 of Phase 3.
- *
- * Deliberately read-only: create (Stage 2), edit (Stage 3), delete
- * (Stage 4), and search/filter (Stage 5) are added one at a time.
- * All four UI states come from useLeads(): loading, error, empty, list.
+ * Leads list (Stages 1–4): list, create entry, edit entry, and delete
+ * with confirmation. Search/filter (Stage 5) comes next.
+ * The four UI states come from useLeads(): loading, error, empty, list.
  */
 export default function Leads() {
   const { leads, isLoading, error, refresh } = useLeads()
+
+  // Delete flow (Stage 4). The dialog holds the lead OBJECT (so it can
+  // name the lead); deletion happens only after explicit confirmation.
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState(null)
+
+  async function handleConfirmDelete() {
+    if (!pendingDelete) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      await deleteLead(pendingDelete.id)
+      // Success: close the dialog, then refetch the list from Supabase
+      // (real data, no local patching). The user stays on /leads.
+      setPendingDelete(null)
+      await refresh()
+    } catch (err) {
+      // Failure: the dialog STAYS OPEN with the server's message and
+      // the lead stays in the list — nothing is falsely "deleted".
+      setDeleteError(err.message)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -113,12 +139,24 @@ export default function Leads() {
                     {formatDate(lead.created_at)}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      to={`/leads/${lead.id}/edit`}
-                      className="text-xs font-semibold text-brand-600 hover:text-brand-700"
-                    >
-                      Edit
-                    </Link>
+                    <div className="flex items-center justify-end gap-3">
+                      <Link
+                        to={`/leads/${lead.id}/edit`}
+                        className="text-xs font-semibold text-brand-600 hover:text-brand-700"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteError(null)
+                          setPendingDelete(lead)
+                        }}
+                        className="text-xs font-semibold text-red-600 hover:text-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -126,6 +164,20 @@ export default function Leads() {
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={pendingDelete ? `Delete “${pendingDelete.name}”?` : ''}
+        description="This permanently removes the lead along with its activities and follow-ups. This cannot be undone."
+        error={deleteError}
+        confirmLabel="Delete lead"
+        isBusy={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setPendingDelete(null)
+          setDeleteError(null)
+        }}
+      />
     </main>
   )
 }
