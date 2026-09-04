@@ -82,6 +82,9 @@ export default function Leads() {
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 text-right font-medium">Value</th>
                 <th className="px-4 py-3 font-medium">Created</th>
+                <th className="px-4 py-3">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -108,6 +111,14 @@ export default function Leads() {
                   </td>
                   <td className="px-4 py-3 text-slate-500">
                     {formatDate(lead.created_at)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <Link
+                      to={`/leads/${lead.id}/edit`}
+                      className="text-xs font-semibold text-brand-600 hover:text-brand-700"
+                    >
+                      Edit
+                    </Link>
                   </td>
                 </tr>
               ))}
