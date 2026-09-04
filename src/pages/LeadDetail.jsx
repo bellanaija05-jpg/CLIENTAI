@@ -21,14 +21,29 @@ function Field({ label, children }) {
   )
 }
 
+// Minimal href builders for the contact fields. The displayed text always
+// stays exactly as stored — these only shape the href of the semantic <a>
+// wrapper. No tracking parameters, no country-code guessing.
+function emailHref(email) {
+  return `mailto:${email.trim()}`
+}
+
+// Strip only the characters a tel: URI cannot carry (whitespace and
+// punctuation separators). Digits and any leading "+" are kept verbatim —
+// the stored number is the source of truth.
+function telHref(phone) {
+  return `tel:${phone.replace(/[\s().-]/g, '')}`
+}
+
 /**
- * Lead details page (Phase 4) with focused inline Notes editing (Stage 10).
+ * Lead details page (Phase 4) with contact actions (Stage 11).
  *
  * Reuses getLead()/useLead() exactly like the edit page: RLS decides
  * whether the id from the URL is visible, and a foreign/missing lead is
  * indistinguishable "not found". The primary Notes field can be edited
  * inline; all other lead editing stays on the existing edit page, while
  * Activities and Follow-Ups remain separate self-contained sections.
+ * Email and phone, when present, are plain mailto:/tel: links.
  */
 export default function LeadDetail() {
   const { leadId } = useParams()
@@ -103,8 +118,30 @@ export default function LeadDetail() {
                 Contact information
               </h2>
               <dl className="mt-4 space-y-3">
-                <Field label="Email">{lead.email || '—'}</Field>
-                <Field label="Phone">{lead.phone || '—'}</Field>
+                <Field label="Email">
+                  {lead.email ? (
+                    <a
+                      href={emailHref(lead.email)}
+                      className="font-medium text-brand-600 underline-offset-2 hover:text-brand-700 hover:underline"
+                    >
+                      {lead.email}
+                    </a>
+                  ) : (
+                    '—'
+                  )}
+                </Field>
+                <Field label="Phone">
+                  {lead.phone ? (
+                    <a
+                      href={telHref(lead.phone)}
+                      className="font-medium text-brand-600 underline-offset-2 hover:text-brand-700 hover:underline"
+                    >
+                      {lead.phone}
+                    </a>
+                  ) : (
+                    '—'
+                  )}
+                </Field>
               </dl>
             </section>
 
