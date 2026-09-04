@@ -6,6 +6,7 @@
 import { Link } from 'react-router'
 import { useAuth } from '../hooks/useAuth.js'
 import Spinner from '../components/ui/Spinner.jsx'
+import DashboardSummary from '../components/dashboard/DashboardSummary.jsx'
 
 export default function Dashboard() {
   const { user, profile, signOut, isLoading } = useAuth()
@@ -40,6 +41,16 @@ export default function Dashboard() {
             Pipeline
           </Link>
         </nav>
+
+        <section className="mt-8">
+          <h2 className="text-lg font-bold text-slate-900">Sales summary</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            A quick look at where your pipeline stands right now.
+          </p>
+          <div className="mt-4">
+            <DashboardSummary />
+          </div>
+        </section>
 
         {profile === null && (
           <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">

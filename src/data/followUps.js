@@ -9,11 +9,26 @@ import { supabase } from '../lib/supabaseClient.js'
  * inserts comes from the auth SESSION — never from the UI.
  */
 
-// All follow-ups for one lead, in DISPLAY order.
-// The SQL is ordered by due_date asc (created_at desc as a tiebreak);
-// the leftover grouping then returns incomplete follow-ups first
-// (earliest due date first, as fetched) followed by completed ones
-// (most recently created first).
+// Per-lead + whole-user follow-up functions.
+//
+// Every INCOMPLETE follow-up for the authenticated user, across all
+// leads. Used by the Dashboard's "Follow-Ups Due" card; RLS filters
+// to the caller's rows. The due-count itself is computed client-side
+// with todayDateKey() (date-only, timezone-safe).
+export async function listIncompleteFollowUps() {
+  const { data, error } = await supabase
+    .from('follow_ups')
+    .select('id, due_date, completed')
+    .eq('completed', false)
+    .order('due_date', { ascending: true })
+
+  if (error) throw error
+  return data
+}
+
+// All follow-ups for one lead, in DISPLAY order: incomplete first
+// (earliest due date asc), then completed (most recently created
+// first) — the leftover grouping after the due_date sort.
 export async function listLeadFollowUps(leadId) {
   const { data, error } = await supabase
     .from('follow_ups')
