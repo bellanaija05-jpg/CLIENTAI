@@ -1,5 +1,6 @@
 import { Link, useParams } from 'react-router'
 import ActivityTimeline from '../components/leads/ActivityTimeline.jsx'
+import FollowUpList from '../components/leads/FollowUpList.jsx'
 import StatusBadge from '../components/leads/StatusBadge.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
@@ -161,6 +162,15 @@ export default function LeadDetail() {
             </h2>
             <div className="mt-4">
               <ActivityTimeline leadId={lead.id} />
+            </div>
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Follow-Ups
+            </h2>
+            <div className="mt-4">
+              <FollowUpList leadId={lead.id} />
             </div>
           </section>
 

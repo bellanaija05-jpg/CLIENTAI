@@ -106,3 +106,25 @@ export const emptyActivityForm = {
   type: 'NOTE',
   description: '',
 }
+
+/**
+ * Follow-up form (Phase 4 Stage 4). due_date comes from a native
+ * <input type="date"> as "YYYY-MM-DD", which is exactly the Postgres
+ * `date` shape — no coercion needed; the database stays date-only.
+ */
+export const followUpFormSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1, 'Title is required')
+    .max(200, 'Title must be 200 characters or fewer'),
+  description: optionalText(2000),
+  due_date: z.string().min(1, 'Due date is required'),
+})
+
+/** Initial values for an empty follow-up form. */
+export const emptyFollowUpForm = {
+  title: '',
+  description: '',
+  due_date: '',
+}

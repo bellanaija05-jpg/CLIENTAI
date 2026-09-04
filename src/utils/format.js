@@ -31,3 +31,31 @@ export function formatDateTime(value) {
     minute: '2-digit',
   })
 }
+
+// --- Date-only (Postgres `date`) helpers -------------------------------
+// A `date` column arrives from supabase-js as "YYYY-MM-DD". We handle it
+// as a date KEY with string part math rather than JS Date parsing, which
+// would introduce timezone offsets for date-only values.
+
+// Local today as "YYYY-MM-DD", for comparing against date keys. ISO
+// date strings compare correctly with plain string < / >, so a due date
+// key is "overdue" when it is less than this.
+export function todayDateKey() {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// "2026-09-08" → "Sep 8, 2026" — built from the parts as a LOCAL date
+// (midnight local), so the displayed day can never shift by a timezone.
+export function formatDateKey(value) {
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  return date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
