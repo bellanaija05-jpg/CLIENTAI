@@ -37,12 +37,26 @@ function statusOf(followUp) {
  * marks incomplete items complete. No automatic activities are created
  * for follow-ups in this stage.
  */
-export default function FollowUpList({ leadId }) {
+export default function FollowUpList({ leadId, openSignal = 0 }) {
   const { followUps, isLoading, error, refresh } = useLeadFollowUps(leadId)
   const [showForm, setShowForm] = useState(false)
   const [formError, setFormError] = useState(null)
   const [completingId, setCompletingId] = useState(null)
   const [completeError, setCompleteError] = useState(null)
+
+  // Quick Actions (Stage 12) can ask this section to open its existing
+  // inline form. Rather than an effect, we adjust state during render
+  // when the signal changes — the pattern React recommends for reacting
+  // to prop changes without cascading renders. The signal is a counter,
+  // so a repeated click still triggers the adjustment; opening while
+  // already open is a harmless no-op. Nothing is ever created here —
+  // only the existing FollowUpForm opens.
+  const [lastSignal, setLastSignal] = useState(openSignal)
+  if (openSignal !== lastSignal) {
+    setLastSignal(openSignal)
+    setFormError(null)
+    setShowForm(true)
+  }
 
   async function handleCreate(values) {
     setFormError(null)

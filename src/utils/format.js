@@ -59,3 +59,25 @@ export function formatDateKey(value) {
     day: 'numeric',
   })
 }
+
+// --- Contact action href builders (Stages 11/12) ------------------------
+// Minimal href builders for a lead's contact fields. The displayed text
+// always stays exactly as stored — these only shape the href of the
+// semantic <a> wrapper. No tracking parameters, no country-code guessing.
+
+// Email: remove ALL whitespace (not just the ends) so a data-entry
+// artifact inside the address — stray spaces, line breaks, non-breaking
+// spaces — can never produce an invalid mailto: URI that silently fails
+// to open a mail client. Everything else is kept verbatim, so the stored
+// email remains the source of truth and the displayed text is untouched
+// (only the href is shaped).
+export function emailHref(email) {
+  return `mailto:${email.replace(/\s+/g, '')}`
+}
+
+// Phone: strip only the characters a tel: URI cannot carry (whitespace
+// and punctuation separators). Digits and any leading "+" are kept
+// verbatim — the stored number is the source of truth.
+export function telHref(phone) {
+  return `tel:${phone.replace(/[\s().-]/g, '')}`
+}

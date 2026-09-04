@@ -1,12 +1,19 @@
+import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import ActivityTimeline from '../components/leads/ActivityTimeline.jsx'
 import FollowUpList from '../components/leads/FollowUpList.jsx'
 import LeadNotes from '../components/leads/LeadNotes.jsx'
+import LeadQuickActions from '../components/leads/LeadQuickActions.jsx'
 import StatusBadge from '../components/leads/StatusBadge.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
 import { useLead } from '../hooks/useLead.js'
-import { formatDate, formatValue } from '../utils/format.js'
+import {
+  emailHref,
+  formatDate,
+  formatValue,
+  telHref,
+} from '../utils/format.js'
 
 // One labelled row inside an information card. A tiny local helper —
 // not exported, so it stays private to this page.
@@ -21,33 +28,43 @@ function Field({ label, children }) {
   )
 }
 
-// Minimal href builders for the contact fields. The displayed text always
-// stays exactly as stored — these only shape the href of the semantic <a>
-// wrapper. No tracking parameters, no country-code guessing.
-function emailHref(email) {
-  return `mailto:${email.trim()}`
-}
-
-// Strip only the characters a tel: URI cannot carry (whitespace and
-// punctuation separators). Digits and any leading "+" are kept verbatim —
-// the stored number is the source of truth.
-function telHref(phone) {
-  return `tel:${phone.replace(/[\s().-]/g, '')}`
-}
-
 /**
- * Lead details page (Phase 4) with contact actions (Stage 11).
+ * Lead details page (Phase 4) with contact actions and Quick Actions
+ * (Stages 11–12).
  *
  * Reuses getLead()/useLead() exactly like the edit page: RLS decides
  * whether the id from the URL is visible, and a foreign/missing lead is
  * indistinguishable "not found". The primary Notes field can be edited
  * inline; all other lead editing stays on the existing edit page, while
  * Activities and Follow-Ups remain separate self-contained sections.
- * Email and phone, when present, are plain mailto:/tel: links.
+ * Email and phone, when present, are plain mailto:/tel: links, and the
+ * header hosts a compact Quick Actions row that opens those same
+ * existing forms rather than duplicating them.
  */
 export default function LeadDetail() {
   const { leadId } = useParams()
   const { lead, isLoading, error, notFound, refresh } = useLead(leadId)
+
+  // Quick Actions → existing inline forms. Each section keeps owning its
+  // own form; the page only scrolls to it, moves focus there (so screen
+  // readers announce the context), and bumps a signal counter that tells
+  // the section to open its existing form. Nothing is saved on click.
+  const [activitySignal, setActivitySignal] = useState(0)
+  const [followUpSignal, setFollowUpSignal] = useState(0)
+  const activitiesRef = useRef(null)
+  const followUpsRef = useRef(null)
+
+  function openActivitiesForm() {
+    activitiesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    activitiesRef.current?.focus({ preventScroll: true })
+    setActivitySignal((signal) => signal + 1)
+  }
+
+  function openFollowUpsForm() {
+    followUpsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    followUpsRef.current?.focus({ preventScroll: true })
+    setFollowUpSignal((signal) => signal + 1)
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
@@ -104,12 +121,13 @@ export default function LeadDetail() {
                 {lead.company || 'No company'}
               </p>
             </div>
-            <Link
-              to={`/leads/${lead.id}/edit`}
-              className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
-            >
-              Edit Lead
-            </Link>
+            <LeadQuickActions
+              leadId={lead.id}
+              email={lead.email}
+              phone={lead.phone}
+              onAddActivity={openActivitiesForm}
+              onAddFollowUp={openFollowUpsForm}
+            />
           </div>
 
           <div className="mt-6 grid gap-6 sm:grid-cols-2">
@@ -188,21 +206,29 @@ export default function LeadDetail() {
             onSaved={refresh}
           />
 
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section
+            ref={activitiesRef}
+            tabIndex={-1}
+            className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Activities
             </h2>
             <div className="mt-4">
-              <ActivityTimeline leadId={lead.id} />
+              <ActivityTimeline leadId={lead.id} openSignal={activitySignal} />
             </div>
           </section>
 
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section
+            ref={followUpsRef}
+            tabIndex={-1}
+            className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               Follow-Ups
             </h2>
             <div className="mt-4">
-              <FollowUpList leadId={lead.id} />
+              <FollowUpList leadId={lead.id} openSignal={followUpSignal} />
             </div>
           </section>
 

@@ -37,10 +37,24 @@ const TYPE_LABELS = {
  * user identity from the session, and relies on RLS + the composite FK
  * to reject foreign leads. No user is ever accepted from the form.
  */
-export default function ActivityTimeline({ leadId }) {
+export default function ActivityTimeline({ leadId, openSignal = 0 }) {
   const { activities, isLoading, error, refresh } = useLeadActivities(leadId)
   const [showForm, setShowForm] = useState(false)
   const [serverError, setServerError] = useState(null)
+
+  // Quick Actions (Stage 12) can ask this section to open its existing
+  // inline form. Rather than an effect, we adjust state during render
+  // when the signal changes — the pattern React recommends for reacting
+  // to prop changes without cascading renders. The signal is a counter,
+  // so a repeated click still triggers the adjustment; opening while
+  // already open is a harmless no-op. Nothing is ever created here —
+  // only the existing ActivityForm opens.
+  const [lastSignal, setLastSignal] = useState(openSignal)
+  if (openSignal !== lastSignal) {
+    setLastSignal(openSignal)
+    setServerError(null)
+    setShowForm(true)
+  }
 
   async function handleCreate(values) {
     setServerError(null)
