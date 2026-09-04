@@ -10,6 +10,7 @@ import LeadCreate from './pages/LeadCreate.jsx'
 import LeadEdit from './pages/LeadEdit.jsx'
 import LeadDetail from './pages/LeadDetail.jsx'
 import Pipeline from './pages/Pipeline.jsx'
+import FollowUps from './pages/FollowUps.jsx'
 
 /**
  * Route table.
@@ -37,6 +38,7 @@ export default function App() {
           <Route path="/leads/:leadId/edit" element={<LeadEdit />} />
           <Route path="/leads/:leadId" element={<LeadDetail />} />
           <Route path="/pipeline" element={<Pipeline />} />
+          <Route path="/follow-ups" element={<FollowUps />} />
         </Route>
       </Routes>
     </AuthProvider>

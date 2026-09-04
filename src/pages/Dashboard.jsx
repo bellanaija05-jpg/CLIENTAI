@@ -40,6 +40,12 @@ export default function Dashboard() {
           >
             Pipeline
           </Link>
+          <Link
+            to="/follow-ups"
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
+          >
+            Follow-Ups
+          </Link>
         </nav>
 
         <section className="mt-8">

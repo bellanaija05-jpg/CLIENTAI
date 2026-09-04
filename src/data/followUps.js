@@ -9,6 +9,22 @@ import { supabase } from '../lib/supabaseClient.js'
  * inserts comes from the auth SESSION — never from the UI.
  */
 
+// All follow-ups for the authenticated user, across all leads — the
+// global Follow-Ups page. One efficient query (no per-lead requests).
+// The embedded `leads(name)` keeps only the needed lead name for each
+// row; supabase-js resolves it through the existing FK, and RLS applies
+// to both tables. Ordering is deterministic (see the page's groups).
+export async function listMyFollowUps() {
+  const { data, error } = await supabase
+    .from('follow_ups')
+    .select('id, lead_id, title, description, due_date, completed, created_at, leads(name)')
+    .order('due_date', { ascending: true })
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+  return data
+}
+
 // Per-lead + whole-user follow-up functions.
 //
 // Every INCOMPLETE follow-up for the authenticated user, across all

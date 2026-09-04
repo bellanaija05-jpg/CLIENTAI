@@ -109,7 +109,7 @@ export default function DashboardSummary() {
           </button>
         </div>
       ) : (
-        <SummaryCard label="Follow-Ups Due" value={dueCount} />
+        <SummaryCard label="Follow-Ups Due" value={dueCount} to="/follow-ups" />
       )}
     </div>
   )
