@@ -33,7 +33,7 @@ export async function insertLead(userId, lead) {
 export async function listMyLeads() {
   const { data, error } = await supabase
     .from('leads')
-    .select('id, name, company, status, value, created_at')
+    .select('id, name, company, email, phone, status, value, created_at')
     .order('created_at', { ascending: false })
 
   if (error) throw error

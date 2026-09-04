@@ -3,6 +3,7 @@
 // in Phase 7. This stub exists so the Phase 1 auth loop is testable
 // end-to-end: sign up → see your profile (proof the database trigger
 // and RLS read worked) → sign out → get bounced to /login.
+import { Link } from 'react-router'
 import { useAuth } from '../hooks/useAuth.js'
 import Spinner from '../components/ui/Spinner.jsx'
 
@@ -24,6 +25,15 @@ export default function Dashboard() {
           The real dashboard arrives in Phase 7. This page exists to verify
           the authentication flow end-to-end.
         </p>
+
+        <div className="mt-4">
+          <Link
+            to="/leads"
+            className="inline-block rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
+          >
+            Go to Leads →
+          </Link>
+        </div>
 
         {profile === null && (
           <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
