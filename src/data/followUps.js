@@ -27,21 +27,6 @@ export async function listMyFollowUps() {
 
 // Per-lead + whole-user follow-up functions.
 //
-// Every INCOMPLETE follow-up for the authenticated user, across all
-// leads. Used by the Dashboard's "Follow-Ups Due" card; RLS filters
-// to the caller's rows. The due-count itself is computed client-side
-// with todayDateKey() (date-only, timezone-safe).
-export async function listIncompleteFollowUps() {
-  const { data, error } = await supabase
-    .from('follow_ups')
-    .select('id, due_date, completed')
-    .eq('completed', false)
-    .order('due_date', { ascending: true })
-
-  if (error) throw error
-  return data
-}
-
 // All follow-ups for one lead, in DISPLAY order: incomplete first
 // (earliest due date asc), then completed (most recently created
 // first) — the leftover grouping after the due_date sort.

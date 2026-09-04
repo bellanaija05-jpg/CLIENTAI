@@ -21,3 +21,21 @@ export async function getProfile(userId) {
   if (error) throw error
   return data
 }
+
+// Update the logged-in user's own profile (display fields only).
+// values comes from the Zod-validated Settings form ({ full_name,
+// business_name }); id and email are never editable. The eq('id',
+// userId) is defense in depth — the RLS UPDATE policy ("Users can
+// update own profile") would reject a foreign id anyway. Same
+// ownership pattern as the leads data layer.
+export async function updateProfile(userId, values) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update(values)
+    .eq('id', userId)
+    .select('id, full_name, business_name, email, created_at')
+    .single()
+
+  if (error) throw error
+  return data
+}

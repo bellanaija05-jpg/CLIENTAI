@@ -88,7 +88,7 @@ export default function Landing() {
       </main>
 
       <footer className="border-t border-slate-200 py-6 text-center text-xs text-slate-400">
-        © 2026 ClientFlow AI · Phase 0 build
+        © 2026 ClientFlow AI
       </footer>
     </div>
   )

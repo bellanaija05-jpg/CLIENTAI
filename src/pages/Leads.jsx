@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import Pagination from '../components/ui/Pagination.jsx'
+import StatusBadge from '../components/leads/StatusBadge.jsx'
 import { formatDate, formatValue } from '../utils/format.js'
 
 // Sentinel for the status filter's "All statuses" option.
@@ -359,7 +360,9 @@ export default function Leads() {
                   <td className="px-4 py-3 text-slate-600">
                     {lead.phone || '—'}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{lead.status}</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={lead.status} />
+                  </td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-800">
                     {formatValue(lead.value)}
                   </td>

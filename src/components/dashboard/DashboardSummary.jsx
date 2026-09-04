@@ -1,35 +1,32 @@
-import { useLeads } from '../../hooks/useLeads.js'
-import { useIncompleteFollowUps } from '../../hooks/useIncompleteFollowUps.js'
 import { formatValue, todayDateKey } from '../../utils/format.js'
 import Spinner from '../ui/Spinner.jsx'
 import SummaryCard from './SummaryCard.jsx'
 
 /**
- * The Dashboard "Sales summary" section (Phase 4 Stage 6).
+ * The Dashboard "Sales summary" section (Phase 4 Stage 6; presentational
+ * since the Phase 4 close-out).
  *
- * Real data only: loads the user's authorized leads ONCE (useLeads) and
- * their incomplete follow-ups ONCE (useIncompleteFollowUps). All six
- * numbers are DERIVED client-side from those arrays — no hard-coding,
- * no per-status requests, no mutation of the source arrays.
+ * Real data only — but the data is OWNED BY THE PAGE: Dashboard fetches
+ * the user's leads and follow-ups ONCE (both RLS-scoped via the existing
+ * hooks) and passes them down, so the summary and the dashboard panels
+ * share two single requests instead of each querying Supabase itself.
+ * All six numbers are DERIVED client-side from those arrays — no
+ * hard-coding, no per-status requests, no mutation of the source arrays.
  *
  * Error isolation: a leads failure shows an error+retry in the lead
  * cards region while the Follow-Ups Due card still renders its own
  * data (and vice versa). The two data sources never destroy each other.
  */
-export default function DashboardSummary() {
-  const {
-    leads,
-    isLoading: leadsLoading,
-    error: leadsError,
-    refresh: refreshLeads,
-  } = useLeads()
-  const {
-    followUps,
-    isLoading: followUpsLoading,
-    error: followUpsError,
-    refresh: refreshFollowUps,
-  } = useIncompleteFollowUps()
-
+export default function DashboardSummary({
+  leads,
+  leadsLoading,
+  leadsError,
+  onRetryLeads,
+  followUps,
+  followUpsLoading,
+  followUpsError,
+  onRetryFollowUps,
+}) {
   // Never show misleading zeros while either source is still loading.
   if (leadsLoading || followUpsLoading) {
     return (
@@ -58,10 +55,11 @@ export default function DashboardSummary() {
     }
   }
 
-  // Follow-Ups Due: incomplete (the hook only fetches those) with
-  // due_date <= today. Date-key string comparison — timezone-safe.
+  // Follow-Ups Due: INCOMPLETE follow-ups (the page passes ALL of the
+  // user's follow-ups; completed ones are excluded here) with due_date
+  // <= today. Date-key string comparison — timezone-safe.
   const dueCount = (followUps ?? []).filter(
-    (followUp) => followUp.due_date <= todayDateKey(),
+    (followUp) => !followUp.completed && followUp.due_date <= todayDateKey(),
   ).length
 
   return (
@@ -74,7 +72,7 @@ export default function DashboardSummary() {
           <p className="mt-1 text-sm text-red-600">{leadsError}</p>
           <button
             type="button"
-            onClick={refreshLeads}
+            onClick={onRetryLeads}
             className="mt-3 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
           >
             Try again
@@ -102,7 +100,7 @@ export default function DashboardSummary() {
           <p className="mt-1 text-sm text-red-600">{followUpsError}</p>
           <button
             type="button"
-            onClick={refreshFollowUps}
+            onClick={onRetryFollowUps}
             className="mt-3 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
           >
             Try again

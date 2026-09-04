@@ -132,3 +132,14 @@ export const emptyFollowUpForm = {
   description: '',
   due_date: '',
 }
+
+/**
+ * Account/profile form (Phase 4 close-out). The profiles table already
+ * has an RLS UPDATE policy ("Users can update own profile"), so the two
+ * display fields are user-editable. Email and id are owned by Supabase
+ * auth / the signup trigger and are never editable here.
+ */
+export const profileFormSchema = z.object({
+  full_name: optionalText(120),
+  business_name: optionalText(120),
+})

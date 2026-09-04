@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 import { getProfile } from '../data/profiles.js'
 import { AuthContext } from './AuthContext.js'
@@ -77,6 +77,20 @@ export function AuthProvider({ children }) {
     }
   }, [userId])
 
+  // Re-fetch the current user's profile (used by the Settings page
+  // after a successful save, so the navbar and account facts update
+  // without a reload). Same promise-callback convention as the effect
+  // above — state is never set synchronously in a render/effect body.
+  const refreshProfile = useCallback(() => {
+    if (!userId) return Promise.resolve()
+    return getProfile(userId)
+      .then((p) => setProfileState({ userId, profile: p }))
+      .catch(() => {
+        // A missing profile must never crash the app; pages handle null.
+        setProfileState({ userId, profile: null })
+      })
+  }, [userId])
+
   async function signOut() {
     try {
       await supabase.auth.signOut()
@@ -92,6 +106,7 @@ export function AuthProvider({ children }) {
     profile,
     isLoading,
     signOut,
+    refreshProfile,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
