@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router'
+import ActivityTimeline from '../components/leads/ActivityTimeline.jsx'
 import StatusBadge from '../components/leads/StatusBadge.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
@@ -24,7 +25,8 @@ function Field({ label, children }) {
  * Reuses getLead()/useLead() exactly like the edit page: RLS decides
  * whether the id from the URL is visible, and a foreign/missing lead is
  * indistinguishable "not found". Editing navigates to the existing edit
- * page; no form, no delete, no activities here (later stages).
+ * page. No form and no delete here; the activities timeline (Stage 2)
+ * is read-only — activity creation arrives in a later stage.
  */
 export default function LeadDetail() {
   const { leadId } = useParams()
@@ -151,6 +153,15 @@ export default function LeadDetail() {
             ) : (
               <p className="mt-4 text-sm text-slate-400">No notes yet.</p>
             )}
+          </section>
+
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Activities
+            </h2>
+            <div className="mt-4">
+              <ActivityTimeline leadId={lead.id} />
+            </div>
           </section>
 
         </>

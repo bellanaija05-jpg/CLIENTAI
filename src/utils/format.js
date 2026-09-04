@@ -19,3 +19,15 @@ export function formatDate(value) {
 export function formatValue(number) {
   return Number(number ?? 0).toLocaleString()
 }
+
+// ISO timestamp → "Mar 9, 2026, 2:45 PM" (rendered in the viewer's
+// locale). Used where the time of day matters (activity timeline).
+export function formatDateTime(value) {
+  return new Date(value).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
