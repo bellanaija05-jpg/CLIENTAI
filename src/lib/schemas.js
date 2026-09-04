@@ -84,3 +84,25 @@ export const emptyLeadForm = {
   value: '',
   notes: '',
 }
+
+/**
+ * Manual activity types. STATUS_CHANGE is deliberately excluded:
+ * users never create it by hand — the data layer logs it automatically
+ * when a lead's status changes (see updateLead in data/leads.js).
+ */
+export const ACTIVITY_TYPES = ['NOTE', 'CALL', 'EMAIL', 'MEETING']
+
+export const activityFormSchema = z.object({
+  type: z.enum(ACTIVITY_TYPES),
+  description: z
+    .string()
+    .trim()
+    .min(1, 'Description is required')
+    .max(2000, 'Description must be 2000 characters or fewer'),
+})
+
+/** Initial values for an empty activity form. */
+export const emptyActivityForm = {
+  type: 'NOTE',
+  description: '',
+}
