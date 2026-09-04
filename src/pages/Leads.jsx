@@ -15,6 +15,26 @@ const ALL_STATUSES = 'ALL'
 // Leads per page for client-side pagination (Stage 8).
 const PAGE_SIZE = 10
 
+// Sort options (Stage 9). Values are stable identifiers; labels are
+// the human-readable text shown in the toolbar select. The status
+// option reuses the canonical LEAD_STATUSES order below.
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'name_asc', label: 'Name A–Z' },
+  { value: 'name_desc', label: 'Name Z–A' },
+  { value: 'value_desc', label: 'Deal value highest' },
+  { value: 'value_asc', label: 'Deal value lowest' },
+  { value: 'status', label: 'Status' },
+]
+
+// Name sorting is explicitly case-insensitive. The final ID comparison used
+// by each sort below guarantees deterministic output even when both the
+// requested primary key and its human-friendly secondary keys are equal.
+const NAME_COLLATOR = new Intl.Collator(undefined, { sensitivity: 'base' })
+const compareNames = (a, b) => NAME_COLLATOR.compare(a.name, b.name)
+const compareIds = (a, b) => a.id.localeCompare(b.id)
+
 /**
  * Leads list (Stages 1–5): list, create/edit/delete entries, plus
  * client-side search and status filtering (Stage 5).
@@ -39,8 +59,14 @@ export default function Leads() {
   const [statusFilter, setStatusFilter] = useState(ALL_STATUSES)
 
   // Client-side pagination (Stage 8). Page resets to 1 whenever the
-  // filters change; derived values below guarantee it stays in range.
+  // filters or the sort change; derived values below guarantee the page
+  // stays in range.
   const [page, setPage] = useState(1)
+
+  // Client-side sort (Stage 9). One local value; the sorted list is
+  // DERIVED between filtering and pagination. Changing it never hits
+  // Supabase and resets the page.
+  const [sortOption, setSortOption] = useState('newest')
 
   // DERIVED during render (no memoization at this data scale): the
   // original leads array is never mutated. Search matches name,
@@ -61,13 +87,64 @@ export default function Leads() {
   const hasActiveFilters =
     normalizedQuery !== '' || statusFilter !== ALL_STATUSES
 
-  // Pagination over the FILTERED result (never the raw dataset).
-  // Derived + clamped so the current page can never go out of range
-  // (e.g. deleting the last item on the last page drops to the prior
-  // page automatically). totalPages is at least 1.
-  const totalPages = Math.max(1, Math.ceil(visibleLeads.length / PAGE_SIZE))
+  // SORT (Stage 9) — step 3 of filter → sort → paginate. Always sorts a
+  // COPY (never mutates leads/visibleLeads), and every option has a
+  // deterministic secondary key for stable, non-random ordering.
+  const sortedLeads = [...visibleLeads].sort((a, b) => {
+    switch (sortOption) {
+      case 'oldest':
+        return (
+          a.created_at.localeCompare(b.created_at) ||
+          compareNames(a, b) ||
+          compareIds(a, b)
+        )
+      case 'name_asc':
+        return (
+          compareNames(a, b) ||
+          a.created_at.localeCompare(b.created_at) ||
+          compareIds(a, b)
+        )
+      case 'name_desc':
+        return (
+          compareNames(b, a) ||
+          a.created_at.localeCompare(b.created_at) ||
+          compareIds(a, b)
+        )
+      case 'value_asc':
+        return (
+          Number(a.value ?? 0) - Number(b.value ?? 0) ||
+          compareNames(a, b) ||
+          compareIds(a, b)
+        )
+      case 'value_desc':
+        return (
+          Number(b.value ?? 0) - Number(a.value ?? 0) ||
+          compareNames(a, b) ||
+          compareIds(a, b)
+        )
+      case 'status':
+        return (
+          LEAD_STATUSES.indexOf(a.status) - LEAD_STATUSES.indexOf(b.status) ||
+          compareNames(a, b) ||
+          compareIds(a, b)
+        )
+      case 'newest':
+      default:
+        return (
+          b.created_at.localeCompare(a.created_at) ||
+          compareNames(a, b) ||
+          compareIds(a, b)
+        )
+    }
+  })
+
+  // Pagination over the SORTED filtered result (never the raw dataset,
+  // and never before sorting). Derived + clamped: the current page can
+  // never go out of range (deleting the last item on the last page
+  // drops to the prior page automatically). totalPages is at least 1.
+  const totalPages = Math.max(1, Math.ceil(sortedLeads.length / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
-  const paginatedLeads = visibleLeads.slice(
+  const paginatedLeads = sortedLeads.slice(
     (safePage - 1) * PAGE_SIZE,
     safePage * PAGE_SIZE,
   )
@@ -78,6 +155,11 @@ export default function Leads() {
   function clearFilters() {
     setSearchQuery('')
     setStatusFilter(ALL_STATUSES)
+    setPage(1)
+  }
+
+  function handleSortChange(event) {
+    setSortOption(event.target.value)
     setPage(1)
   }
 
@@ -153,6 +235,20 @@ export default function Leads() {
               </option>
             ))}
           </select>
+          <label className="flex w-full items-center gap-2 text-sm text-slate-600 sm:w-auto">
+            <span className="shrink-0">Sort:</span>
+            <select
+              value={sortOption}
+              onChange={handleSortChange}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 sm:w-48"
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           {hasActiveFilters && (
             <button
               type="button"
