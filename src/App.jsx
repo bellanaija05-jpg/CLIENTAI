@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import Leads from './pages/Leads.jsx'
 import LeadCreate from './pages/LeadCreate.jsx'
 import LeadEdit from './pages/LeadEdit.jsx'
+import LeadDetail from './pages/LeadDetail.jsx'
 
 /**
  * Route table.
@@ -15,8 +16,8 @@ import LeadEdit from './pages/LeadEdit.jsx'
  * Phase 0: public routes (landing + auth stubs).
  * Phase 1: AuthProvider wraps everything; protected pages live inside
  * ProtectedRoute.
- * Phase 3: /leads list, /leads/new create, /leads/:leadId/edit
- * (Stages 1–3).
+ * Phase 3: /leads list, /leads/new create, /leads/:leadId/edit.
+ * Phase 4: /leads/:leadId details (Stage 1, view only).
  */
 export default function App() {
   return (
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="/leads" element={<Leads />} />
           <Route path="/leads/new" element={<LeadCreate />} />
           <Route path="/leads/:leadId/edit" element={<LeadEdit />} />
+          <Route path="/leads/:leadId" element={<LeadDetail />} />
         </Route>
       </Routes>
     </AuthProvider>

@@ -221,7 +221,12 @@ export default function Leads() {
                   className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60"
                 >
                   <td className="px-4 py-3 font-medium text-slate-900">
-                    {lead.name}
+                    <Link
+                      to={`/leads/${lead.id}`}
+                      className="hover:text-brand-700 hover:underline"
+                    >
+                      {lead.name}
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-slate-600">
                     {lead.company || '—'}
