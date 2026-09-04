@@ -1,6 +1,7 @@
 import { Link, useParams } from 'react-router'
 import ActivityTimeline from '../components/leads/ActivityTimeline.jsx'
 import FollowUpList from '../components/leads/FollowUpList.jsx'
+import LeadNotes from '../components/leads/LeadNotes.jsx'
 import StatusBadge from '../components/leads/StatusBadge.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
@@ -21,13 +22,13 @@ function Field({ label, children }) {
 }
 
 /**
- * Lead details page (Phase 4 Stage 1) — VIEW ONLY.
+ * Lead details page (Phase 4) with focused inline Notes editing (Stage 10).
  *
  * Reuses getLead()/useLead() exactly like the edit page: RLS decides
  * whether the id from the URL is visible, and a foreign/missing lead is
- * indistinguishable "not found". Editing navigates to the existing edit
- * page. No form and no delete here; the activities timeline (Stage 2)
- * is read-only — activity creation arrives in a later stage.
+ * indistinguishable "not found". The primary Notes field can be edited
+ * inline; all other lead editing stays on the existing edit page, while
+ * Activities and Follow-Ups remain separate self-contained sections.
  */
 export default function LeadDetail() {
   const { leadId } = useParams()
@@ -143,18 +144,12 @@ export default function LeadDetail() {
             </section>
           </div>
 
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Notes
-            </h2>
-            {lead.notes ? (
-              <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-800">
-                {lead.notes}
-              </p>
-            ) : (
-              <p className="mt-4 text-sm text-slate-400">No notes yet.</p>
-            )}
-          </section>
+          <LeadNotes
+            key={lead.id}
+            leadId={lead.id}
+            notes={lead.notes}
+            onSaved={refresh}
+          />
 
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">

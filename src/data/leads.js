@@ -103,6 +103,23 @@ export async function updateLead(leadId, values) {
   return data
 }
 
+// Update only the primary Notes field from Lead Details (Phase 4 Stage 10).
+// The payload cannot modify ownership or any other lead field. RLS decides
+// whether leadId is writable, and the database trigger owns updated_at.
+// This deliberately creates no Activity: primary Notes and Activities are
+// separate features.
+export async function updateLeadNotes(leadId, notes) {
+  const { data, error } = await supabase
+    .from('leads')
+    .update({ notes })
+    .eq('id', leadId)
+    .select('id')
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 // List every lead the database lets this caller see.
 // With RLS enabled that is exactly "my own leads" — the two-account
 // security test in Phase 2 is what proves it.

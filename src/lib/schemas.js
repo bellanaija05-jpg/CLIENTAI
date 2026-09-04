@@ -30,6 +30,10 @@ function optionalText(maxLength) {
 // Pragmatic email shape: something@something.something, no spaces.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+// Notes use the same normalization in the full lead form and the focused
+// Lead Details editor: trim, cap at 5,000 characters, empty → null.
+export const leadNotesSchema = optionalText(5000)
+
 export const leadFormSchema = z.object({
   name: z
     .string()
@@ -67,7 +71,7 @@ export const leadFormSchema = z.object({
     .refine((v) => v >= 0, 'Value cannot be negative')
     .refine((v) => v <= 9999999999.99, 'Value is too large'),
 
-  notes: optionalText(5000),
+  notes: leadNotesSchema,
 })
 
 /**
