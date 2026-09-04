@@ -6,10 +6,14 @@ import { LEAD_STATUSES } from '../lib/schemas.js'
 import ConfirmDialog from '../components/ui/ConfirmDialog.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
+import Pagination from '../components/ui/Pagination.jsx'
 import { formatDate, formatValue } from '../utils/format.js'
 
 // Sentinel for the status filter's "All statuses" option.
 const ALL_STATUSES = 'ALL'
+
+// Leads per page for client-side pagination (Stage 8).
+const PAGE_SIZE = 10
 
 /**
  * Leads list (Stages 1–5): list, create/edit/delete entries, plus
@@ -34,6 +38,10 @@ export default function Leads() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState(ALL_STATUSES)
 
+  // Client-side pagination (Stage 8). Page resets to 1 whenever the
+  // filters change; derived values below guarantee it stays in range.
+  const [page, setPage] = useState(1)
+
   // DERIVED during render (no memoization at this data scale): the
   // original leads array is never mutated. Search matches name,
   // company, and email — case-insensitive, trimmed, partial. Optional
@@ -53,12 +61,24 @@ export default function Leads() {
   const hasActiveFilters =
     normalizedQuery !== '' || statusFilter !== ALL_STATUSES
 
+  // Pagination over the FILTERED result (never the raw dataset).
+  // Derived + clamped so the current page can never go out of range
+  // (e.g. deleting the last item on the last page drops to the prior
+  // page automatically). totalPages is at least 1.
+  const totalPages = Math.max(1, Math.ceil(visibleLeads.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginatedLeads = visibleLeads.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  )
+
   // The toolbar is only meaningful once real leads exist.
   const showToolbar = !isLoading && !error && leads !== null && leads.length > 0
 
   function clearFilters() {
     setSearchQuery('')
     setStatusFilter(ALL_STATUSES)
+    setPage(1)
   }
 
   async function handleConfirmDelete() {
@@ -109,14 +129,20 @@ export default function Leads() {
           <input
             type="search"
             value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) => {
+              setSearchQuery(event.target.value)
+              setPage(1)
+            }}
             placeholder="Search name, company, or email…"
             aria-label="Search leads"
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 sm:max-w-xs"
           />
           <select
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
+            onChange={(event) => {
+              setStatusFilter(event.target.value)
+              setPage(1)
+            }}
             aria-label="Filter by status"
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 sm:w-48"
           >
@@ -215,7 +241,7 @@ export default function Leads() {
               </tr>
             </thead>
             <tbody>
-              {visibleLeads.map((lead) => (
+              {paginatedLeads.map((lead) => (
                 <tr
                   key={lead.id}
                   className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60"
@@ -268,6 +294,22 @@ export default function Leads() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Client-side pagination over the filtered result. Shown whenever
+          there are matches, and actually rendered by Pagination only when
+          more than one page exists. */}
+      {!isLoading && !error && visibleLeads.length > 0 && (
+        <div className="mt-6">
+          <Pagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            onPrevious={() => setPage(safePage - 1)}
+            onNext={() => setPage(safePage + 1)}
+            totalItems={visibleLeads.length}
+            pageSize={PAGE_SIZE}
+          />
         </div>
       )}
 
