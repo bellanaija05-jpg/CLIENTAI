@@ -23,11 +23,19 @@ export default function Leads() {
         ← Dashboard
       </Link>
 
-      <div className="mt-4">
-        <h1 className="text-2xl font-bold text-slate-900">Leads</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Everyone you are tracking, newest first.
-        </p>
+      <div className="mt-4 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Leads</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Everyone you are tracking, newest first.
+          </p>
+        </div>
+        <Link
+          to="/leads/new"
+          className="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-700"
+        >
+          + Create Lead
+        </Link>
       </div>
 
       {isLoading && (
@@ -57,7 +65,7 @@ export default function Leads() {
           <EmptyState
             icon="🌱"
             title="No leads yet"
-            description="Your pipeline is empty. Lead creation arrives in the next stage — this page currently proves your account can only ever see its own data."
+            description="Your pipeline is empty. Click the Create Lead button above to add your first lead — only your account will ever see it."
           />
         </div>
       )}

@@ -6,6 +6,7 @@ import Login from './pages/auth/Login.jsx'
 import SignUp from './pages/auth/SignUp.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Leads from './pages/Leads.jsx'
+import LeadCreate from './pages/LeadCreate.jsx'
 
 /**
  * Route table.
@@ -13,7 +14,7 @@ import Leads from './pages/Leads.jsx'
  * Phase 0: public routes (landing + auth stubs).
  * Phase 1: AuthProvider wraps everything; protected pages live inside
  * ProtectedRoute.
- * Phase 3: /leads — first real CRM page (Stage 1: read-only list).
+ * Phase 3: /leads list + /leads/new create form (Stages 1–2).
  */
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/leads" element={<Leads />} />
+          <Route path="/leads/new" element={<LeadCreate />} />
         </Route>
       </Routes>
     </AuthProvider>

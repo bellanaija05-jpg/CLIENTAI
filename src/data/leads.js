@@ -13,14 +13,16 @@ import { supabase } from '../lib/supabaseClient.js'
  */
 
 // Create a lead for the currently authenticated user.
-// The client never invents a user_id: it comes from the session, and
-// RLS ("Users can insert own leads") rejects any row that claims
-// someone else's identity.
-export async function insertLead(userId, lead) {
+// user_id comes from the auth SESSION (never from a form field), and
+// RLS ("Users can insert own leads") independently verifies it against
+// the JWT — a tampered client cannot create a lead for someone else.
+// Optional fields arrive as null (see lib/schemas.js), so the database
+// stores clean NULLs instead of empty strings.
+export async function createLead(userId, lead) {
   const { data, error } = await supabase
     .from('leads')
     .insert({ ...lead, user_id: userId })
-    .select('id, name, company, status, value, created_at')
+    .select('id, name, company, email, phone, status, value, created_at')
     .single()
 
   if (error) throw error
