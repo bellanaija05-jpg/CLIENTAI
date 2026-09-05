@@ -92,6 +92,70 @@ The engine is centralised and explainable: the same `computeLeadPriority()`
 drives the dashboard, Lead Details, and the Leads list, so priorities are
 always consistent.
 
+## Production deployment
+
+A testing/learning-friendly checklist. The app is **frontend-only static
+files + Supabase** — deploy the static build to any static host (Netlify,
+Vercel, Cloudflare Pages, GitHub Pages) and configure Supabase once.
+
+1. **Build the frontend**
+
+   ```bash
+   npm install
+   npm run build
+   ```
+
+   Static files land in `dist/` — point your host's "publish directory" at it.
+
+2. **Configure the frontend environment variables** in your host's dashboard
+   (not in git):
+
+   | Variable | Where from |
+   | --- | --- |
+   | `VITE_SUPABASE_URL` | Supabase project URL (Project Settings → API) |
+   | `VITE_SUPABASE_ANON_KEY` | Supabase anon key (public by design) |
+
+   > The anon key is **safe** in the browser — real access control is enforced
+   > by PostgreSQL Row Level Security (RLS), not by hiding this key. The
+   > `service_role` key must never be used in the frontend.
+
+3. **Apply the database migrations** once in the Supabase SQL Editor, **in
+   order** (`0001` → `0002` → `0003`). Each file is a single transaction
+   (all-or-nothing) and uses `IF NOT EXISTS`.
+
+4. **Provision the AI Edge Function secret** (if you want the AI Follow-Up
+   Generator): set it in the Supabase dashboard under
+   **Project Settings → Functions → Secrets**.
+
+   ```bash
+   supabase secrets set AI_API_KEY=sk-your-key-here
+   # optional overrides (defaults shown):
+   supabase secrets set AI_MODEL=gpt-4o-mini
+   supabase secrets set AI_API_BASE_URL=https://api.openai.com/v1
+   ```
+
+   Deploy the function once:
+
+   ```bash
+   supabase functions deploy generate-follow-up
+   ```
+
+   > No `GEMINI_API_KEY` is needed — the project uses an OpenAI-compatible
+   > `AI_API_KEY` secret instead. If left unset, the rest of the CRM works
+   > normally and the generator shows a friendly error.
+
+5. **Configure Supabase Auth redirects**. In **Project Settings → Auth**, set:
+
+   - **Site URL** → your production domain (e.g. `https://app.clientflow.ai`)
+   - **Redirect URLs** → add your domain plus auth callback paths,
+     e.g. `https://app.clientflow.ai/login` and `https://app.clientflow.ai/callback`
+
+   Without these, email-confirmation links and magic-link logins will fail to
+   return users to the app.
+
+That's the full production checklist. Re-deploying the frontend is just
+rebuild + republish; Supabase configuration is one-time.
+
 ## Scripts
 
 | Command             | Purpose                        |
