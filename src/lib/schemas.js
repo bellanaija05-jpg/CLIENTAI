@@ -134,6 +134,34 @@ export const emptyFollowUpForm = {
 }
 
 /**
+ * AI follow-up intents (Phase 5). Kept deliberately small — three
+ * intents that map onto the CRM's sales stages. Values MUST match the
+ * ai_generation_type enum in supabase/migrations/0003_create_ai_generations.sql
+ * (the database is the final authority) and the Edge Function's
+ * VALID_INTENTS list — keep the three in sync.
+ */
+export const AI_INTENTS = [
+  {
+    value: 'FOLLOW_UP_GENERAL',
+    label: 'General follow-up',
+    description: 'A friendly check-in that moves the lead to the next step.',
+  },
+  {
+    value: 'FOLLOW_UP_NO_RESPONSE',
+    label: 'After no response',
+    description: 'A short, easy-to-answer nudge when the lead has gone quiet.',
+  },
+  {
+    value: 'FOLLOW_UP_PROPOSAL',
+    label: 'After a proposal',
+    description: 'Follow up on a sent proposal or quote and its timeline.',
+  },
+]
+
+/** Default intent for the AI follow-up generator. */
+export const DEFAULT_AI_INTENT = AI_INTENTS[0].value
+
+/**
  * Account/profile form (Phase 4 close-out). The profiles table already
  * has an RLS UPDATE policy ("Users can update own profile"), so the two
  * display fields are user-editable. Email and id are owned by Supabase

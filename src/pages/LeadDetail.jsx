@@ -4,6 +4,7 @@ import ActivityTimeline from '../components/leads/ActivityTimeline.jsx'
 import FollowUpList from '../components/leads/FollowUpList.jsx'
 import LeadNotes from '../components/leads/LeadNotes.jsx'
 import LeadQuickActions from '../components/leads/LeadQuickActions.jsx'
+import AiFollowUpGenerator from '../components/leads/AiFollowUpGenerator.jsx'
 import StatusBadge from '../components/leads/StatusBadge.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
@@ -205,6 +206,8 @@ export default function LeadDetail() {
             notes={lead.notes}
             onSaved={refresh}
           />
+
+          <AiFollowUpGenerator leadId={lead.id} />
 
           <section
             ref={activitiesRef}

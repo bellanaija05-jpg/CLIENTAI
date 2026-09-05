@@ -15,6 +15,9 @@ logs
 *.log
 npm-debug.log*
 
+# Supabase CLI local artifacts (link/config cache from `supabase link`)
+supabase/.temp
+
 # Editor / OS
 .vscode/*
 !.vscode/extensions.json
