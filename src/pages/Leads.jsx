@@ -1,24 +1,41 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import { useLeads } from '../hooks/useLeads.js'
+import { useMyActivityStamps } from '../hooks/useMyActivityStamps.js'
+import { useMyFollowUps } from '../hooks/useMyFollowUps.js'
 import { deleteLead } from '../data/leads.js'
 import { LEAD_STATUSES } from '../lib/schemas.js'
+import {
+  EMPTY_FOLLOW_UP_SUMMARY,
+  PRIORITY_LABELS,
+  PRIORITY_ORDER,
+  buildLastActivityMap,
+  computeLeadPriority,
+  priorityRank,
+  summarizeFollowUpsByLead,
+} from '../lib/leadIntelligence.js'
 import ConfirmDialog from '../components/ui/ConfirmDialog.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import Pagination from '../components/ui/Pagination.jsx'
 import StatusBadge from '../components/leads/StatusBadge.jsx'
-import { formatDate, formatValue } from '../utils/format.js'
+import PriorityBadge from '../components/leads/PriorityBadge.jsx'
+import { formatDate, formatValue, todayDateKey } from '../utils/format.js'
 
 // Sentinel for the status filter's "All statuses" option.
 const ALL_STATUSES = 'ALL'
+
+// Sentinel for the priority filter's "All priorities" option.
+const ALL_PRIORITIES = 'ALL'
 
 // Leads per page for client-side pagination (Stage 8).
 const PAGE_SIZE = 10
 
 // Sort options (Stage 9). Values are stable identifiers; labels are
 // the human-readable text shown in the toolbar select. The status
-// option reuses the canonical LEAD_STATUSES order below.
+// option reuses the canonical LEAD_STATUSES order below. The priority
+// option reuses the engine's priorityRank() — HIGH → MEDIUM → LOW,
+// with leads that have no priority (closed) sorted last.
 const SORT_OPTIONS = [
   { value: 'newest', label: 'Newest first' },
   { value: 'oldest', label: 'Oldest first' },
@@ -27,6 +44,7 @@ const SORT_OPTIONS = [
   { value: 'value_desc', label: 'Deal value highest' },
   { value: 'value_asc', label: 'Deal value lowest' },
   { value: 'status', label: 'Status' },
+  { value: 'priority', label: 'Priority (high first)' },
 ]
 
 // Name sorting is explicitly case-insensitive. The final ID comparison used
@@ -47,6 +65,13 @@ const compareIds = (a, b) => a.id.localeCompare(b.id)
  */
 export default function Leads() {
   const { leads, isLoading, error, refresh } = useLeads()
+  // Phase 6 Stage 4 — priority needs the SAME whole-user datasets the
+  // dashboard already uses: activity stamps (last activity per lead) and
+  // follow-ups (overdue / due-soon signals). Reused as-is — no new
+  // fetching system. The page derives the priority map ONCE below, then
+  // uses it for display, filtering, and sorting.
+  const { activityStamps } = useMyActivityStamps()
+  const { followUps } = useMyFollowUps()
 
   // Delete flow (Stage 4). The dialog holds the lead OBJECT (so it can
   // name the lead); deletion happens only after explicit confirmation.
@@ -54,10 +79,12 @@ export default function Leads() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(null)
 
-  // Search + status filter (Stage 5) — local UI state, never sent to
-  // Supabase. The status select mirrors the DB enum via LEAD_STATUSES.
+  // Search + status + priority filters (Stages 5/4) — local UI state,
+  // never sent to Supabase. The status select mirrors the DB enum via
+  // LEAD_STATUSES; the priority select reuses the engine's priorities.
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState(ALL_STATUSES)
+  const [priorityFilter, setPriorityFilter] = useState(ALL_PRIORITIES)
 
   // Client-side pagination (Stage 8). Page resets to 1 whenever the
   // filters or the sort change; derived values below guarantee the page
@@ -69,13 +96,46 @@ export default function Leads() {
   // Supabase and resets the page.
   const [sortOption, setSortOption] = useState('newest')
 
+  // Phase 6 Stage 4 — ONE intelligence pass over ALL leads. leadPriorityById
+  // maps lead id → its priority so display, filtering, and sorting ALL
+  // read the same derived values (no per-row recomputation, no duplicated
+  // scoring in JSX). computeLeadPriority() is the source of truth: WON/LOST
+  // get null (no priority) here, exactly like the dashboard and Lead
+  // Details. While the auxiliary datasets are still loading, the map stays
+  // empty rather than showing WRONG priorities ("never contacted").
+  const intelligenceReady = activityStamps !== null && followUps !== null
+  const todayKey = todayDateKey()
+  const lastActivityMap = buildLastActivityMap(activityStamps)
+  const followUpsByLead = summarizeFollowUpsByLead(followUps, todayKey)
+  const leadPriorityById = new Map()
+  if (intelligenceReady) {
+    for (const lead of leads ?? []) {
+      leadPriorityById.set(
+        lead.id,
+        computeLeadPriority(lead, {
+          lastActivityAt: lastActivityMap.get(lead.id) ?? null,
+          followUpSummary:
+            followUpsByLead.get(lead.id) ?? EMPTY_FOLLOW_UP_SUMMARY,
+          todayKey,
+        }).priority,
+      )
+    }
+  }
+
   // DERIVED during render (no memoization at this data scale): the
   // original leads array is never mutated. Search matches name,
   // company, and email — case-insensitive, trimmed, partial. Optional
-  // chaining guards the nullable company/email columns.
+  // chaining guards the nullable company/email columns. Priority
+  // filtering narrows the SAME list (it never replaces search/status).
   const normalizedQuery = searchQuery.trim().toLowerCase()
   const visibleLeads = (leads ?? []).filter((lead) => {
     if (statusFilter !== ALL_STATUSES && lead.status !== statusFilter) {
+      return false
+    }
+    if (
+      priorityFilter !== ALL_PRIORITIES &&
+      leadPriorityById.get(lead.id) !== priorityFilter
+    ) {
       return false
     }
     if (normalizedQuery === '') return true
@@ -86,7 +146,9 @@ export default function Leads() {
     )
   })
   const hasActiveFilters =
-    normalizedQuery !== '' || statusFilter !== ALL_STATUSES
+    normalizedQuery !== '' ||
+    statusFilter !== ALL_STATUSES ||
+    priorityFilter !== ALL_PRIORITIES
 
   // SORT (Stage 9) — step 3 of filter → sort → paginate. Always sorts a
   // COPY (never mutates leads/visibleLeads), and every option has a
@@ -129,6 +191,16 @@ export default function Leads() {
           compareNames(a, b) ||
           compareIds(a, b)
         )
+      case 'priority':
+        // Engine's priorityRank: HIGH(0) → MEDIUM(1) → LOW(2). Leads
+        // without a priority (WON/LOST → null) rank at the end (3), so
+        // closed leads never sort above open ones and never fake HIGH.
+        return (
+          priorityRank(leadPriorityById.get(a.id)) -
+            priorityRank(leadPriorityById.get(b.id)) ||
+          compareNames(a, b) ||
+          compareIds(a, b)
+        )
       case 'newest':
       default:
         return (
@@ -156,6 +228,7 @@ export default function Leads() {
   function clearFilters() {
     setSearchQuery('')
     setStatusFilter(ALL_STATUSES)
+    setPriorityFilter(ALL_PRIORITIES)
     setPage(1)
   }
 
@@ -208,7 +281,7 @@ export default function Leads() {
       </div>
 
       {showToolbar && (
-        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <input
             type="search"
             value={searchQuery}
@@ -233,6 +306,22 @@ export default function Leads() {
             {LEAD_STATUSES.map((status) => (
               <option key={status} value={status}>
                 {status}
+              </option>
+            ))}
+          </select>
+          <select
+            value={priorityFilter}
+            onChange={(event) => {
+              setPriorityFilter(event.target.value)
+              setPage(1)
+            }}
+            aria-label="Filter by priority"
+            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 sm:w-44"
+          >
+            <option value={ALL_PRIORITIES}>All priorities</option>
+            {PRIORITY_ORDER.map((priority) => (
+              <option key={priority} value={priority}>
+                {PRIORITY_LABELS[priority]}
               </option>
             ))}
           </select>
@@ -294,9 +383,9 @@ export default function Leads() {
         </div>
       )}
 
-      {/* Leads exist, but the active search/status filters match none.
-          Deliberately DIFFERENT from "No leads yet": the user HAS leads
-          — they are just hidden by the current filters. */}
+      {/* Leads exist, but the active search/status/priority filters match
+          none. Deliberately DIFFERENT from "No leads yet": the user HAS
+          leads — they are just hidden by the current filters. */}
       {!isLoading &&
         !error &&
         leads !== null &&
@@ -306,7 +395,7 @@ export default function Leads() {
             <EmptyState
               icon="🔍"
               title="No leads match your filters"
-              description="Leads exist, but none match the current search and status. Try different words or clear the filters."
+              description="Leads exist, but none match the current search, status, and priority. Try different words or clear the filters."
               action={
                 <button
                   type="button"
@@ -321,7 +410,7 @@ export default function Leads() {
         )}
 
       {!isLoading && !error && leads !== null && visibleLeads.length > 0 && (
-        <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
@@ -330,6 +419,7 @@ export default function Leads() {
                 <th className="px-4 py-3 font-medium">Email</th>
                 <th className="px-4 py-3 font-medium">Phone</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium">Priority</th>
                 <th className="px-4 py-3 text-right font-medium">Value</th>
                 <th className="px-4 py-3 font-medium">Created</th>
                 <th className="px-4 py-3">
@@ -362,6 +452,12 @@ export default function Leads() {
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={lead.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    {/* Closed leads (priority null) render an empty cell —
+                        PriorityBadge already returns nothing for them, and
+                        the engine's null IS the correct "no priority". */}
+                    <PriorityBadge priority={leadPriorityById.get(lead.id)} />
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-800">
                     {formatValue(lead.value)}

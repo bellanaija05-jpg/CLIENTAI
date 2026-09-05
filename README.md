@@ -67,6 +67,30 @@ Setup:
 Without a deployed function or `AI_API_KEY`, the rest of the CRM works
 normally and the generator shows a user-friendly error state.
 
+## Sales Intelligence & Lead Prioritization (Phase 6)
+
+ClientFlow answers *"which leads should I focus on first?"* with a
+deterministic, rule-based intelligence engine (`src/lib/leadIntelligence.js`)
+that turns the CRM data you already enter into actionable signals. No AI is
+involved in scoring, and "last activity" always comes from activity
+timestamps — never `updated_at`.
+
+- **Priority** — every open lead is scored on signals like overdue and
+  upcoming follow-ups, proposal stage, deal value, and activity freshness,
+  then labelled **High / Medium / Low**. WON and LOST leads are closed and
+  get no priority.
+- **Dashboard** — a Needs Attention panel (top leads that need action
+  today, with their recommended next action), a Sales Summary (total/open/
+  won/lost, pipeline value, high-priority count), and a Pipeline-by-stage
+  breakdown.
+- **Lead Details** — a Lead Intelligence section explaining why a lead has
+  its priority, the influencing signals, and the recommended next action.
+- **Leads list** — Priority column, priority filter, and a "Priority (high
+  first)" sort, combinable with search and status filtering.
+
+The engine is centralised and explainable: the same `computeLeadPriority()`
+drives the dashboard, Lead Details, and the Leads list, so priorities are
+always consistent.
 
 ## Scripts
 
@@ -81,13 +105,13 @@ normally and the generator shows a user-friendly error state.
 
 - [x] Phase 0 — Foundations: Vite + React + Tailwind, ESLint, routing
       skeleton, landing page, environment configuration
-- [ ] Phase 1 — Authentication (Supabase Auth + profiles trigger)
-- [ ] Phase 2 — Database schema + Row Level Security
-- [ ] Phase 3 — Leads CRUD
-- [ ] Phase 4 — Lead details + activities
-- [ ] Phase 5 — Follow-ups
-- [ ] Phase 6 — Sales pipeline (kanban)
-- [ ] Phase 7 — Dashboard + analytics v1
-- [ ] Phase 8 — Settings + polish
+- [x] Phase 1 — Authentication (Supabase Auth + profiles trigger)
+- [x] Phase 2 — Database schema + Row Level Security
+- [x] Phase 3 — Leads CRUD
+- [x] Phase 4 — Lead details + activities
+- [x] Phase 5 — Follow-ups
+- [x] Phase 6 — Sales pipeline (kanban)
+- [x] Phase 7 — Dashboard + analytics v1
+- [x] Phase 8 — Settings + polish
 - [ ] Phase 9 — Hardening + deploy
-- [ ] Phase 10 — AI follow-up generator (Supabase Edge Function proxy)
+- [x] Phase 10 — AI follow-up generator (Supabase Edge Function proxy)
