@@ -256,7 +256,19 @@ export default function Dashboard() {
             ? `${profile.business_name} — here is where your CRM stands today.`
             : 'Here is where your CRM stands today.'}
         </p>
-      </header>
+            </header>
+
+      {/* Today's Sales Focus is the Dashboard's primary actionable section.
+          It reuses the SAME computed attention items (computeNeedsAttention +
+          computeNextAction) already derived above; the panel only renders them
+          with action-aware navigation to the correct existing workflow. */}
+      <NeedsAttentionPanel
+        items={attentionItems}
+        hasLeads={leadsList.length > 0}
+        isLoading={attentionIsLoading}
+        error={attentionError}
+        onRetry={retryAttentionData}
+      />
 
       <section className="mt-8" aria-label="Sales summary">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -277,14 +289,6 @@ export default function Dashboard() {
           />
         </div>
       </section>
-
-      <NeedsAttentionPanel
-        items={attentionItems}
-        hasLeads={leadsList.length > 0}
-        isLoading={attentionIsLoading}
-        error={attentionError}
-        onRetry={retryAttentionData}
-      />
 
       {/* Stage breakdown is leads-derived only: show its own error when
           the leads fetch failed, and the real breakdown once loaded
