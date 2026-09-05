@@ -5,24 +5,28 @@ import { useMyFollowUps } from '../hooks/useMyFollowUps.js'
 import { useMyActivityStamps } from '../hooks/useMyActivityStamps.js'
 import {
   formatDate,
-  formatDateKey,
   formatValue,
   todayDateKey,
 } from '../utils/format.js'
 import StatusBadge from '../components/leads/StatusBadge.jsx'
 import DashboardSummary from '../components/dashboard/DashboardSummary.jsx'
 import NeedsAttentionPanel from '../components/dashboard/NeedsAttentionPanel.jsx'
+import SalesWorkQueue from '../components/dashboard/SalesWorkQueue.jsx'
 import PipelineByStage from '../components/dashboard/PipelineByStage.jsx'
 import PanelError from '../components/dashboard/PanelError.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
 import {
+  bucketPendingFollowUps,
   buildLastActivityMap,
   computeNeedsAttention,
   computeNextAction,
   computeSalesMetrics,
+  daysBetweenDateKeys,
   EMPTY_FOLLOW_UP_SUMMARY,
   NEEDS_ATTENTION_LIMIT,
   summarizeFollowUpsByLead,
+  WORK_QUEUE_FOLLOW_UP_LIMIT,
+  WORK_QUEUE_OPPORTUNITY_LIMIT,
 } from '../lib/leadIntelligence.js'
 
 // Shared card shell for the panels below, so they look identical
@@ -105,64 +109,9 @@ function RecentLeadsPanel({ leads, isLoading, error, onRetry }) {
   )
 }
 
-// Overdue + due-today follow-ups, earliest due first. Derived from the
-// same useMyFollowUps fetch as the summary card — no extra request.
-// (Phase 6 Stage 2: title changed from "Needs attention" to avoid a
-// duplicate heading with the new intelligence-powered panel above.)
-function FollowUpsPanel({ followUps, isLoading, error, onRetry }) {
-  const todayKey = todayDateKey()
-  const due = (followUps ?? [])
-    .filter((followUp) => !followUp.completed && followUp.due_date <= todayKey)
-    .slice(0, 5)
-
-  return (
-    <Panel title="Follow-ups due" viewAllTo="/follow-ups">
-      {isLoading && (
-        <div className="flex justify-center py-6">
-          <Spinner />
-        </div>
-      )}
-
-      {!isLoading && error && (
-        <PanelError
-          message="Couldn&rsquo;t load your follow-ups."
-          onRetry={onRetry}
-        />
-      )}
-
-      {!isLoading && !error && due.length === 0 && (
-        <p className="py-6 text-center text-sm text-slate-400">
-          Nothing due right now. Overdue and due-today follow-ups will appear
-          here.
-        </p>
-      )}
-
-      {!isLoading && !error && due.length > 0 && (
-        <ul className="divide-y divide-slate-100">
-          {due.map((followUp) => (
-            <li key={followUp.id} className="py-2.5 first:pt-0 last:pb-0">
-              <p className="truncate text-sm font-semibold text-slate-900">
-                {followUp.title}
-              </p>
-              <p className="mt-0.5 text-xs text-slate-400">
-                <Link
-                  to={`/leads/${followUp.lead_id}`}
-                  className="font-medium text-brand-600 hover:text-brand-700"
-                >
-                  {followUp.leads?.name ?? 'Lead'}
-                </Link>
-                {' · '}
-                {followUp.due_date < todayKey
-                  ? `Overdue — due ${formatDateKey(followUp.due_date)}`
-                  : 'Due today'}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
-  )
-}
+// (The former bottom "Follow-ups due" panel was removed in Phase 8
+// Stage 2: the Today's Sales Work queue now owns that list, so pending
+// follow-ups are shown once, in context, instead of twice.)
 
 /**
  * Dashboard (Phase 6 Stage 2 — sales intelligence).
@@ -232,6 +181,40 @@ export default function Dashboard() {
       }),
     }))
 
+  // --- Today's Sales Work (Phase 8 Stage 2) — the user's actual pending
+  // tasks, derived from the SAME three fetched datasets. No new requests.
+  const pendingBuckets = bucketPendingFollowUps(followUpsList, todayKey)
+  const leadsById = new Map(leadsList.map((lead) => [lead.id, lead]))
+
+  // Pending follow-up tasks: overdue first, then due today. Each task is
+  // enriched for DISPLAY only — lead name (embedded or from the leads
+  // list), deal value, and how many days overdue (engine date-key math).
+  // Completed rows can never appear: bucketPendingFollowUps filters on
+  // the database's `completed` flag before anything else.
+  const followUpTasks = [
+    ...pendingBuckets.overdue,
+    ...pendingBuckets.dueToday,
+  ]
+    .slice(0, WORK_QUEUE_FOLLOW_UP_LIMIT)
+    .map((followUp) => ({
+      ...followUp,
+      leadName:
+        followUp.leads?.name ?? leadsById.get(followUp.lead_id)?.name ?? 'Lead',
+      leadValue: leadsById.get(followUp.lead_id)?.value ?? null,
+      daysOverdue: daysBetweenDateKeys(followUp.due_date, todayKey),
+    }))
+
+  // Opportunities: the engine's ranked attention list (already enriched
+  // with each lead's recommended next action above), minus leads whose
+  // pending follow-up task is ALREADY shown above — their work appears
+  // once, as the concrete task. Ordering is computeNeedsAttention()'s
+  // output order; closed leads never reach this list (the engine
+  // excludes them) and no new scoring is introduced here.
+  const taskLeadIds = new Set(followUpTasks.map((task) => task.lead_id))
+  const opportunityItems = attentionItems
+    .filter((item) => !taskLeadIds.has(item.lead.id))
+    .slice(0, WORK_QUEUE_OPPORTUNITY_LIMIT)
+
   // Combined attention data state: the panel needs all three sources, so
   // any failure shows one error whose retry re-runs every fetch.
   const attentionIsLoading =
@@ -265,6 +248,24 @@ export default function Dashboard() {
       <NeedsAttentionPanel
         items={attentionItems}
         hasLeads={leadsList.length > 0}
+        isLoading={attentionIsLoading}
+        error={attentionError}
+        onRetry={retryAttentionData}
+      />
+
+      {/* Today's Sales Work (Phase 8 Stage 2) — the daily work QUEUE next
+          to the Focus panel above: concrete pending follow-ups + the
+          engine's actionable opportunities. Reuses the same datasets and
+          the same combined loading/error handling. */}
+      <SalesWorkQueue
+        followUpTasks={followUpTasks}
+        nextUpcoming={pendingBuckets.upcoming[0] ?? null}
+        opportunityItems={opportunityItems}
+        counts={{
+          overdue: metrics.overdueFollowUps,
+          dueToday: metrics.dueTodayFollowUps,
+          highPriority: metrics.highPriorityLeads,
+        }}
         isLoading={attentionIsLoading}
         error={attentionError}
         onRetry={retryAttentionData}
@@ -313,18 +314,14 @@ export default function Dashboard() {
         <PipelineByStage stages={metrics.pipelineByStage} />
       )}
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      {/* The old two-column grid (recent leads + follow-ups) lost its
+          follow-ups half to the Today's Sales Work queue above. */}
+      <div className="mt-8">
         <RecentLeadsPanel
           leads={leads}
           isLoading={leadsLoading}
           error={leadsError}
           onRetry={refreshLeads}
-        />
-        <FollowUpsPanel
-          followUps={followUps}
-          isLoading={followUpsLoading}
-          error={followUpsError}
-          onRetry={refreshFollowUps}
         />
       </div>
 

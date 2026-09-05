@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useParams } from 'react-router'
 import ActivityTimeline from '../components/leads/ActivityTimeline.jsx'
 import FollowUpList from '../components/leads/FollowUpList.jsx'
 import LeadNotes from '../components/leads/LeadNotes.jsx'
@@ -92,6 +92,34 @@ export default function LeadDetail() {
     aiRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     aiRef.current?.focus({ preventScroll: true })
   }
+
+  // Phase 8 Stage 2 — the dashboard panels (Today's Sales Focus / Today's
+  // Sales Work) link here with ?section=follow-ups|activities|ai to land
+  // the user directly in the matching EXISTING workflow. Following the
+  // codebase's render-adjustment pattern (see FollowUpList), the matching
+  // section's open-signal is bumped ONCE, right after the lead exists —
+  // no setState inside an effect. The bump opens the section's own inline
+  // form (nothing new is rendered); the effect below then scrolls to and
+  // focuses the section (DOM-only, after the refs exist).
+  const section = new URLSearchParams(useLocation().search).get('section')
+  const [openedSection, setOpenedSection] = useState(null)
+  if (lead && !isLoading && !error && section && openedSection === null) {
+    setOpenedSection(section)
+    if (section === 'follow-ups') setFollowUpSignal((signal) => signal + 1)
+    else if (section === 'activities') setActivitySignal((signal) => signal + 1)
+  }
+
+  useEffect(() => {
+    if (openedSection === null) return
+    const targets = {
+      'follow-ups': followUpsRef,
+      activities: activitiesRef,
+      ai: aiRef,
+    }
+    const target = targets[openedSection]
+    target?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    target?.current?.focus({ preventScroll: true })
+  }, [openedSection])
 
   // Phase 6 Stage 3 — derive the ONE intelligence object for this lead
   // from data this page already has (lead + activities + follow-ups).

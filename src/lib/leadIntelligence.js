@@ -228,6 +228,45 @@ export function summarizeFollowUpsByLead(followUps, todayKey) {
   return grouped
 }
 
+// --- Daily work queue (Phase 8 Stage 2) --------------------------------------
+
+// UI capacity for the Dashboard's "Today's Sales Work" queue. Like
+// NEEDS_ATTENTION_LIMIT, the engine returns the FULL buckets and the UI
+// slices, so the summary counts stay truthful (a capped count would
+// understate the work).
+export const WORK_QUEUE_FOLLOW_UP_LIMIT = 5
+export const WORK_QUEUE_OPPORTUNITY_LIMIT = 3
+
+/**
+ * Bucket PENDING (incomplete) follow-ups into the daily work queue's
+ * groups: overdue → due today → upcoming.
+ *
+ * Conventions (same as summarizeFollowUps() / FollowUps.jsx):
+ *   - completed rows are NEVER pending work (filtered out first — the
+ *     `completed` flag from the database is the only completion signal)
+ *   - state comes strictly from due_date vs todayKey (plain string
+ *     comparison); created_at is never treated as a due signal
+ *   - each bucket is sorted deterministically: due date asc, created_at
+ *     as the tie-break (ISO strings compare correctly as strings)
+ *
+ * PURE — plain data in, plain arrays out. The Dashboard uses this so the
+ * work queue reuses the ONE bucketing rule instead of re-filtering.
+ */
+export function bucketPendingFollowUps(followUps, todayKey) {
+  const pending = (followUps ?? []).filter((row) => !row.completed)
+  const byDueDate = (a, b) =>
+    a.due_date.localeCompare(b.due_date) ||
+    (a.created_at ?? '').localeCompare(b.created_at ?? '')
+
+  return {
+    overdue: pending.filter((row) => row.due_date < todayKey).sort(byDueDate),
+    dueToday: pending
+      .filter((row) => row.due_date === todayKey)
+      .sort(byDueDate),
+    upcoming: pending.filter((row) => row.due_date > todayKey).sort(byDueDate),
+  }
+}
+
 // --- Last-activity index ----------------------------------------------------
 
 // Build Map<lead_id, latest activity created_at> from the lightweight

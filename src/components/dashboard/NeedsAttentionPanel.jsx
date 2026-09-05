@@ -4,29 +4,7 @@ import { formatValue } from '../../utils/format.js'
 import Spinner from '../ui/Spinner.jsx'
 import PanelError from './PanelError.jsx'
 import { STATUS_LABELS } from '../../lib/schemas.js'
-
-// Maps a next-action kind (from computeNextAction) to the Lead Details
-// route + query that opens the matching existing workflow. This is
-// purely a navigation handoff — the intelligence logic itself lives in
-// the engine; this map only translates its recommendation into a URL.
-//
-// The Lead Details page already reads `?section=` to scroll/focus and
-// open its existing inline forms (Activities, Follow-Ups, AI generator).
-const ACTION_ROUTES = {
-  'view-follow-ups': (leadId) => `/leads/${leadId}?section=follow-ups`,
-  'add-follow-up': (leadId) => `/leads/${leadId}?section=follow-ups`,
-  'add-activity': (leadId) => `/leads/${leadId}?section=activities`,
-  'generate-ai': (leadId) => `/leads/${leadId}?section=ai`,
-}
-
-// The primary action verb shown on the lead button. Falls back to the
-// engine's own label for any action kind without a specific route.
-const ACTION_LABELS = {
-  'view-follow-ups': 'View Follow-Ups',
-  'add-follow-up': 'Add Follow-Up',
-  'add-activity': 'Add Activity',
-  'generate-ai': 'Generate Follow-Up',
-}
+import { ACTION_LABELS, ACTION_ROUTES } from './actionRoutes.js'
 
 // One lead row inside the Daily Sales Focus panel. PURE presentation —
 // the ranking, priority, reason, and next action were all computed by
