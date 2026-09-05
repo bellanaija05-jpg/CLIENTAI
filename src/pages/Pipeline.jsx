@@ -1,21 +1,9 @@
 import { Link } from 'react-router'
 import { useLeads } from '../hooks/useLeads.js'
-import { LEAD_STATUSES } from '../lib/schemas.js'
+import { LEAD_STATUSES, STATUS_LABELS } from '../lib/schemas.js'
 import Spinner from '../components/ui/Spinner.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import PipelineColumn from '../components/pipeline/PipelineColumn.jsx'
-
-// Readable column titles for the six statuses. Values come from the
-// shared LEAD_STATUSES constant (the single source of truth); these
-// labels are presentation only.
-const STATUS_LABELS = {
-  NEW: 'New',
-  CONTACTED: 'Contacted',
-  QUALIFIED: 'Qualified',
-  PROPOSAL: 'Proposal',
-  WON: 'Won',
-  LOST: 'Lost',
-}
 
 /**
  * Sales Pipeline (Phase 4 Stage 5) — a view over the SAME lead data as

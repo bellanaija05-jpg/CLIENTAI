@@ -17,6 +17,23 @@ export const LEAD_STATUSES = [
   'LOST',
 ]
 
+/**
+ * Canonical human-readable labels for the lead statuses (Phase 6 Stage 1
+ * consolidation). The ONE place that names a status — Pipeline columns,
+ * dashboards, insights — imports from here instead of keeping private
+ * copies. Keys MUST mirror LEAD_STATUSES / the lead_status enum in
+ * migration 0002 (labels are presentation only; the values are the
+ * contract).
+ */
+export const STATUS_LABELS = {
+  NEW: 'New',
+  CONTACTED: 'Contacted',
+  QUALIFIED: 'Qualified',
+  PROPOSAL: 'Proposal',
+  WON: 'Won',
+  LOST: 'Lost',
+}
+
 // Optional text field: trimmed, capped, and turned into null when left
 // empty — so the database stores a clean NULL instead of ''.
 function optionalText(maxLength) {

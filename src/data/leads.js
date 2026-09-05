@@ -123,10 +123,14 @@ export async function updateLeadNotes(leadId, notes) {
 // List every lead the database lets this caller see.
 // With RLS enabled that is exactly "my own leads" — the two-account
 // security test in Phase 2 is what proves it.
+// updated_at is selected for display/metadata only. It is NEVER a
+// last-activity signal (edits pollute it; activities don't touch it) —
+// staleness always comes from activities via listMyActivityStamps() and
+// lib/leadIntelligence.js.
 export async function listMyLeads() {
   const { data, error } = await supabase
     .from('leads')
-    .select('id, name, company, email, phone, status, value, created_at')
+    .select('id, name, company, email, phone, status, value, created_at, updated_at')
     .order('created_at', { ascending: false })
 
   if (error) throw error

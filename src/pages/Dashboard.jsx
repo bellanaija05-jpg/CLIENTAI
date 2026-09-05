@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 import { useAuth } from '../hooks/useAuth.js'
 import { useLeads } from '../hooks/useLeads.js'
 import { useMyFollowUps } from '../hooks/useMyFollowUps.js'
+import { useMyActivityStamps } from '../hooks/useMyActivityStamps.js'
 import {
   formatDate,
   formatDateKey,
@@ -10,9 +11,21 @@ import {
 } from '../utils/format.js'
 import StatusBadge from '../components/leads/StatusBadge.jsx'
 import DashboardSummary from '../components/dashboard/DashboardSummary.jsx'
+import NeedsAttentionPanel from '../components/dashboard/NeedsAttentionPanel.jsx'
+import PipelineByStage from '../components/dashboard/PipelineByStage.jsx'
+import PanelError from '../components/dashboard/PanelError.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
+import {
+  buildLastActivityMap,
+  computeNeedsAttention,
+  computeNextAction,
+  computeSalesMetrics,
+  EMPTY_FOLLOW_UP_SUMMARY,
+  NEEDS_ATTENTION_LIMIT,
+  summarizeFollowUpsByLead,
+} from '../lib/leadIntelligence.js'
 
-// Shared card shell for the two panels below, so they look identical
+// Shared card shell for the panels below, so they look identical
 // (title + "View all" link + body). Pure layout — no data logic.
 function Panel({ title, viewAllTo, children }) {
   return (
@@ -28,22 +41,6 @@ function Panel({ title, viewAllTo, children }) {
       </div>
       <div className="mt-4 flex-1">{children}</div>
     </section>
-  )
-}
-
-// Shared panel error state (retry re-runs the page-level hook).
-function PanelError({ message, onRetry }) {
-  return (
-    <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center">
-      <p className="text-sm font-medium text-red-800">{message}</p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="mt-3 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
-      >
-        Try again
-      </button>
-    </div>
   )
 }
 
@@ -110,6 +107,8 @@ function RecentLeadsPanel({ leads, isLoading, error, onRetry }) {
 
 // Overdue + due-today follow-ups, earliest due first. Derived from the
 // same useMyFollowUps fetch as the summary card — no extra request.
+// (Phase 6 Stage 2: title changed from "Needs attention" to avoid a
+// duplicate heading with the new intelligence-powered panel above.)
 function FollowUpsPanel({ followUps, isLoading, error, onRetry }) {
   const todayKey = todayDateKey()
   const due = (followUps ?? [])
@@ -117,7 +116,7 @@ function FollowUpsPanel({ followUps, isLoading, error, onRetry }) {
     .slice(0, 5)
 
   return (
-    <Panel title="Needs attention" viewAllTo="/follow-ups">
+    <Panel title="Follow-ups due" viewAllTo="/follow-ups">
       {isLoading && (
         <div className="flex justify-center py-6">
           <Spinner />
@@ -166,13 +165,18 @@ function FollowUpsPanel({ followUps, isLoading, error, onRetry }) {
 }
 
 /**
- * Dashboard (Phase 4 close-out — replaces the Phase 1 stub).
+ * Dashboard (Phase 6 Stage 2 — sales intelligence).
  *
- * The page owns the TWO data fetches (leads + follow-ups, both RLS-
- * scoped via the existing hooks) and shares them with the summary, so
- * the whole dashboard costs exactly two requests. Everything else is
- * derived client-side. All loading/error/empty states follow the
- * existing app patterns; a failure in one panel never breaks another.
+ * The page owns the THREE data fetches (leads, follow-ups, activity
+ * stamps — all RLS-scoped via the existing hooks) and derives all
+ * intelligence ONCE via the engine in lib/leadIntelligence.js:
+ * computeSalesMetrics() for the summary cards and the stage breakdown,
+ * computeNeedsAttention() + computeNextAction() for the Needs Attention
+ * panel. No scoring logic lives in this page or its components.
+ *
+ * The whole dashboard costs exactly three requests. Everything else is
+ * derived client-side; all loading/error/empty states follow the existing
+ * app patterns and a failure in one panel never breaks another.
  */
 export default function Dashboard() {
   const { profile, isLoading: authLoading } = useAuth()
@@ -188,8 +192,56 @@ export default function Dashboard() {
     error: followUpsError,
     refresh: refreshFollowUps,
   } = useMyFollowUps()
+  const {
+    activityStamps,
+    isLoading: stampsLoading,
+    error: stampsError,
+    refresh: refreshStamps,
+  } = useMyActivityStamps()
 
   if (authLoading) return <Spinner fullScreen />
+
+  // --- Derived intelligence (engine-owned, recomputed per render at this
+  // data scale — the established no-memoization convention). Never shown
+  // mid-load: panels gate on the loading flags before rendering these. ---
+  const todayKey = todayDateKey()
+  const leadsList = leads ?? []
+  const followUpsList = followUps ?? []
+  const lastActivityMap = buildLastActivityMap(activityStamps)
+  const metrics = computeSalesMetrics(leadsList, followUpsList, todayKey, {
+    lastActivityMap,
+  })
+  const followUpsByLead = summarizeFollowUpsByLead(followUpsList, todayKey)
+
+  // Top attention items, each enriched with the engine's recommended
+  // next action for that lead. computeNeedsAttention() returns the FULL
+  // ranked list; the panel displays at most NEEDS_ATTENTION_LIMIT.
+  const attentionItems = computeNeedsAttention(leadsList, {
+    followUps: followUpsList,
+    lastActivityMap,
+    todayKey,
+  })
+    .slice(0, NEEDS_ATTENTION_LIMIT)
+    .map((item) => ({
+      ...item,
+      nextAction: computeNextAction(item.lead, {
+        lastActivityAt: lastActivityMap.get(item.lead.id) ?? null,
+        followUpSummary:
+          followUpsByLead.get(item.lead.id) ?? EMPTY_FOLLOW_UP_SUMMARY,
+        todayKey,
+      }),
+    }))
+
+  // Combined attention data state: the panel needs all three sources, so
+  // any failure shows one error whose retry re-runs every fetch.
+  const attentionIsLoading =
+    leadsLoading || followUpsLoading || stampsLoading
+  const attentionError = leadsError ?? followUpsError ?? stampsError
+  const retryAttentionData = () => {
+    refreshLeads()
+    refreshFollowUps()
+    refreshStamps()
+  }
 
   const firstName = profile?.full_name?.trim().split(/\s+/)[0]
 
@@ -212,17 +264,50 @@ export default function Dashboard() {
         </h2>
         <div className="mt-4">
           <DashboardSummary
-            leads={leads}
+            metrics={metrics}
             leadsLoading={leadsLoading}
             leadsError={leadsError}
             onRetryLeads={refreshLeads}
-            followUps={followUps}
             followUpsLoading={followUpsLoading}
             followUpsError={followUpsError}
             onRetryFollowUps={refreshFollowUps}
+            stampsLoading={stampsLoading}
+            stampsError={stampsError}
+            onRetryStamps={refreshStamps}
           />
         </div>
       </section>
+
+      <NeedsAttentionPanel
+        items={attentionItems}
+        hasLeads={leadsList.length > 0}
+        isLoading={attentionIsLoading}
+        error={attentionError}
+        onRetry={retryAttentionData}
+      />
+
+      {/* Stage breakdown is leads-derived only: show its own error when
+          the leads fetch failed, and the real breakdown once loaded
+          (honest zero rows are fine — "0 leads in a stage" is true). */}
+      {!leadsLoading && leadsError && (
+        <section
+          aria-label="Pipeline by stage"
+          className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
+          <h2 className="text-sm font-semibold text-slate-800">
+            Pipeline by stage
+          </h2>
+          <div className="mt-4">
+            <PanelError
+              message="Couldn&rsquo;t load your pipeline stages."
+              onRetry={refreshLeads}
+            />
+          </div>
+        </section>
+      )}
+      {!leadsLoading && !leadsError && (
+        <PipelineByStage stages={metrics.pipelineByStage} />
+      )}
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <RecentLeadsPanel

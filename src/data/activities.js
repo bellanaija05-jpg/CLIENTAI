@@ -71,3 +71,24 @@ export async function logStatusChange(leadId, fromStatus, toStatus) {
     `Status changed from ${fromStatus} to ${toStatus}.`,
   )
 }
+
+// Lightweight activity "stamps" for the whole user (Phase 6 Stage 1):
+// ONLY lead_id + created_at, so the lead-intelligence engine can derive
+// "last activity per lead" in one request. Deliberately minimal:
+//   - no descriptions/types — the timeline functions own those;
+//   - no manual user filtering — RLS ("Users can view own activities")
+//     scopes every row to the caller, same as everywhere else in src/data;
+//   - no ordering — the engine takes the max created_at per lead itself
+//     (buildLastActivityMap in lib/leadIntelligence.js), so sorting here
+//     would only cost the database work.
+// Consumers: hooks/useMyActivityStamps.js → leadIntelligence rules.
+// NOTE: leads.updated_at is deliberately NOT used for staleness — it
+// moves on any lead edit and never moves when an activity is created.
+export async function listMyActivityStamps() {
+  const { data, error } = await supabase
+    .from('activities')
+    .select('lead_id, created_at')
+
+  if (error) throw error
+  return data
+}
