@@ -6,14 +6,21 @@ import LeadNotes from '../components/leads/LeadNotes.jsx'
 import LeadQuickActions from '../components/leads/LeadQuickActions.jsx'
 import AiFollowUpGenerator from '../components/leads/AiFollowUpGenerator.jsx'
 import StatusBadge from '../components/leads/StatusBadge.jsx'
+import LeadInsights from '../components/leads/LeadInsights.jsx'
 import EmptyState from '../components/ui/EmptyState.jsx'
 import Spinner from '../components/ui/Spinner.jsx'
 import { useLead } from '../hooks/useLead.js'
+import { useLeadActivities } from '../hooks/useLeadActivities.js'
+import { useLeadFollowUps } from '../hooks/useLeadFollowUps.js'
+import {
+  computeLeadInsights,
+} from '../lib/leadIntelligence.js'
 import {
   emailHref,
   formatDate,
   formatValue,
   telHref,
+  todayDateKey,
 } from '../utils/format.js'
 
 // One labelled row inside an information card. A tiny local helper —
@@ -45,6 +52,15 @@ function Field({ label, children }) {
 export default function LeadDetail() {
   const { leadId } = useParams()
   const { lead, isLoading, error, notFound, refresh } = useLead(leadId)
+  // Phase 6 Stage 3 — Activity Timeline and Follow-Up List already load
+  // this lead's activities + follow-ups via these two hooks. Lifting
+  // them to the page means the page can derive the lead's intelligence
+  // ONCE from data the existing sections ALREADY fetched — the
+  // LeadInsights section therefore adds ZERO extra Supabase requests.
+  const { activities, isLoading: activitiesLoading } = useLeadActivities(
+    leadId,
+  )
+  const { followUps, isLoading: followUpsLoading } = useLeadFollowUps(leadId)
 
   // Quick Actions → existing inline forms. Each section keeps owning its
   // own form; the page only scrolls to it, moves focus there (so screen
@@ -54,6 +70,7 @@ export default function LeadDetail() {
   const [followUpSignal, setFollowUpSignal] = useState(0)
   const activitiesRef = useRef(null)
   const followUpsRef = useRef(null)
+  const aiRef = useRef(null)
 
   function openActivitiesForm() {
     activitiesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -65,6 +82,38 @@ export default function LeadDetail() {
     followUpsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     followUpsRef.current?.focus({ preventScroll: true })
     setFollowUpSignal((signal) => signal + 1)
+  }
+
+  // Phase 6 Stage 3 — the AI Follow-Up Generator already lives on this
+  // page (Phase 5). This just scrolls to it + moves focus there, so the
+  // engine's "generate-ai" next action can reach the existing generator
+  // without duplicating it.
+  function openAiGenerator() {
+    aiRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    aiRef.current?.focus({ preventScroll: true })
+  }
+
+  // Phase 6 Stage 3 — derive the ONE intelligence object for this lead
+  // from data this page already has (lead + activities + follow-ups).
+  // The engine is the single source of truth: same inputs → same shape.
+  // Gated on the activities + follow-ups finishing so the section never
+  // flashes "never contacted" while the timeline is still loading.
+  const insights =
+    lead !== null && lead !== undefined && !activitiesLoading && !followUpsLoading
+      ? computeLeadInsights(lead, {
+          lastActivityAt: lastActivityAtFor(activities),
+          followUps: followUps ?? [],
+          todayKey: todayDateKey(),
+        })
+      : null
+
+  // Latest activity timestamp for this lead's insights. Activities arrive
+  // newest-first from the data layer; daysSinceTimestamp + timestampToDateKey
+  // do the date-key math (activity timestamps, NOT updated_at — the engine
+  // never treats updated_at as activity).
+  function lastActivityAtFor(activityList) {
+    if (!Array.isArray(activityList) || activityList.length === 0) return null
+    return activityList[0]?.created_at ?? null
   }
 
   return (
@@ -207,7 +256,44 @@ export default function LeadDetail() {
             onSaved={refresh}
           />
 
-          <AiFollowUpGenerator leadId={lead.id} />
+          {/* Phase 6 Stage 3 — Lead Intelligence sits right after the
+              notes so the "why + what next" explains the lead before the
+              raw Activities/Follow-Ups/AI sections. It renders only once
+              the lead's activities + follow-ups (and thus the derived
+              insights) have loaded; otherwise a compact neutral loading
+              hint. */}
+          {insights !== null && (
+            <LeadInsights
+              key={lead.id}
+              insights={insights}
+              onGoToFollowUps={openFollowUpsForm}
+              onGoToAi={openAiGenerator}
+              onGoToAddActivity={openActivitiesForm}
+              onGoToAddFollowUp={openFollowUpsForm}
+            />
+          )}
+          {insights === null &&
+            (activitiesLoading || followUpsLoading) && (
+              <section
+                aria-label="Lead intelligence"
+                className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+              >
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Lead Intelligence
+                </h2>
+                <p className="mt-4 text-sm text-slate-400">
+                  Analysing this lead…
+                </p>
+              </section>
+            )}
+
+          <section
+            ref={aiRef}
+            tabIndex={-1}
+            className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <AiFollowUpGenerator leadId={lead.id} />
+          </section>
 
           <section
             ref={activitiesRef}
