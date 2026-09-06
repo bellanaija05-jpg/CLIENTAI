@@ -316,6 +316,7 @@ export function computeLeadPriority(
       priority: null,
       score: 0,
       reasons: [],
+      signals: [],
       daysSinceActivity: null,
       isClosed: true,
     }
@@ -372,9 +373,115 @@ export function computeLeadPriority(
     priority,
     score,
     reasons: signals.map((key) => SIGNAL_REASONS[key]),
+    signals,
     daysSinceActivity,
     isClosed: false,
   }
+}
+
+// --- Why this lead matters (Phase 8 Stage 3) ----------------------------------
+
+/**
+ * ONE concise, deterministic "why this lead matters" sentence, composed
+ * from the SAME signals computeLeadPriority() already derived — no second
+ * evaluation, no new scoring, no invented urgency. Pure: same inputs →
+ * same sentence, always.
+ *
+ * context:
+ *   priority        — computeLeadPriority() result for this lead (its
+ *                     `signals` + `isClosed` + `daysSinceActivity` drive
+ *                     the wording).
+ *   followUpSummary — summarizeFollowUps() output for this lead.
+ *   todayKey        — "YYYY-MM-DD" for "now".
+ *
+ * First matching rule wins (strongest situation first). High-value and
+ * proposal qualifiers fold INTO the sentence only where the existing
+ * rules support them, so a lead with several signals still gets one
+ * short sentence — the full signal list stays available via
+ * computeLeadPriority().reasons for the detailed chips.
+ *
+ *   closed (WON/LOST)                → honest closed-state sentence
+ *   1. Overdue follow-up             → attention sentence
+ *   2. Follow-up due today           → "A follow-up is due today."
+ *   3. PROPOSAL gone quiet           → "…has gone N days without recent
+ *                                      activity" (idle ≥
+ *                                      PROPOSAL_STALE_AFTER_DAYS, or
+ *                                      never contacted)
+ *   4. High-value AND cooling        → "High-value opportunity that has
+ *      (idle ≥ SEMI_STALE_AFTER_DAYS)   had no activity in N days."
+ *   5. Never contacted               → "…has not been contacted yet."
+ *   6. Stale / semi-stale            → "No activity in N days."
+ *   7. Follow-up due soon            → "A follow-up is due in N days."
+ *   8. No meaningful signal          → neutral on-track sentence
+ */
+export function computeLeadExplanation(
+  lead,
+  { priority, followUpSummary = EMPTY_FOLLOW_UP_SUMMARY, todayKey },
+) {
+  const { signals, isClosed, daysSinceActivity } = priority
+
+  // Closed leads get an honest closed-state sentence — never an active
+  // selling recommendation.
+  if (isClosed) {
+    return lead.status === 'WON'
+      ? 'This deal was won — there is nothing left to chase here.'
+      : 'This lead is closed.'
+  }
+
+  const isHighValue = signals.includes('HIGH_VALUE')
+
+  if (followUpSummary.hasOverdue) {
+    return isHighValue
+      ? 'A high-value deal has an overdue follow-up that needs attention.'
+      : 'An overdue follow-up needs attention.'
+  }
+  if (followUpSummary.hasDueToday) {
+    return 'A follow-up is due today.'
+  }
+  if (
+    lead.status === 'PROPOSAL' &&
+    (daysSinceActivity === null ||
+      daysSinceActivity >= PROPOSAL_STALE_AFTER_DAYS)
+  ) {
+    if (daysSinceActivity === null) {
+      return isHighValue
+        ? 'A high-value proposal is awaiting a decision, but no activity has been recorded yet.'
+        : 'This proposal is awaiting a decision, but no activity has been recorded yet.'
+    }
+    return isHighValue
+      ? `High-value proposal that has gone ${daysSinceActivity} days without recent activity.`
+      : `This proposal has gone ${daysSinceActivity} days without recent activity.`
+  }
+  if (isHighValue && daysSinceActivity >= SEMI_STALE_AFTER_DAYS) {
+    return `High-value opportunity that has had no activity in ${daysSinceActivity} days.`
+  }
+  if (signals.includes('NEVER_CONTACTED')) {
+    return 'This lead has not been contacted yet.'
+  }
+  if (daysSinceActivity >= STALE_AFTER_DAYS) {
+    return `No activity in ${daysSinceActivity} days — the conversation has gone quiet.`
+  }
+  if (daysSinceActivity >= SEMI_STALE_AFTER_DAYS) {
+    return `No activity in ${daysSinceActivity} days.`
+  }
+  // Due-soon is only reachable when no stronger rule fired. The day count
+  // uses the same rule data computeLeadPriority used (its signal exists,
+  // so nextDueDate cannot be null here — the 0-day guard is just safety).
+  if (signals.includes('FOLLOW_UP_DUE_SOON')) {
+    const nextDueKey = followUpSummary.hasDueToday
+      ? todayKey
+      : followUpSummary.nextDueDate
+    const daysUntilDue = daysBetweenDateKeys(todayKey, nextDueKey)
+    return daysUntilDue <= 0
+      ? 'A follow-up is due today.'
+      : `A follow-up is due in ${daysUntilDue} ${
+          daysUntilDue === 1 ? 'day' : 'days'
+        }.`
+  }
+  if (signals.includes('NEW_STAGE')) {
+    return 'New lead — the conversation has started recently.'
+  }
+  return 'No pressing signals right now — this lead is on track.'
 }
 
 // --- Next action ------------------------------------------------------------
@@ -530,6 +637,14 @@ export function computeLeadInsights(
     priority: priority.priority,
     score: priority.score,
     reasons: priority.reasons,
+    // Phase 8 Stage 3 — ONE concise "why this lead matters" sentence,
+    // composed by the engine from the SAME signals above. No extra data,
+    // no extra computation pass, no extra requests.
+    reason: computeLeadExplanation(lead, {
+      priority,
+      followUpSummary,
+      todayKey,
+    }),
     isClosed: priority.isClosed,
     daysSinceActivity: priority.daysSinceActivity,
     lastActivityAt,

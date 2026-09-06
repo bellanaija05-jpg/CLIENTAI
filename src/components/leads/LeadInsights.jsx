@@ -47,7 +47,7 @@ export default function LeadInsights({
   onGoToAddActivity = null,
   onGoToAddFollowUp = null,
 }) {
-  const { priority, nextAction, reasons, isClosed } = insights
+  const { priority, nextAction, reason, reasons, isClosed } = insights
 
   // What title does this lead visually carry? A closed lead has no
   // priority badge at all, so give the title an honest neutral one.
@@ -121,24 +121,32 @@ export default function LeadInsights({
         <p className="text-sm font-semibold text-slate-900">{title}</p>
       </div>
 
-      {/* 2. Why this lead matters — plain-language, engine-produced. */}
+      {/* 2. Why this lead matters — ONE concise sentence composed by the
+          engine (computeLeadExplanation) from the SAME signals that set
+          the priority. The detailed signal chips below stay available. */}
       <div className="mt-4">
-        <p className="text-sm font-medium text-slate-800">
-          {reasons.length > 0
-            ? reasons.join(' · ')
-            : 'No active signals — this lead is in a neutral state.'}
-        </p>
-        {!isClosed && nextAction.kind !== 'none' && (
-          <p className="mt-2 text-sm text-slate-500">
-            {nextAction.description}
-          </p>
-        )}
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          Why this lead matters
+        </h3>
+        <p className="mt-1 text-sm font-medium text-slate-800">{reason}</p>
       </div>
 
-      {/* 3. Recommended next action — label + description + one affordance. */}
+      {/* 3. Recommended next step — the engine's existing next action,
+          label + description + the same single affordance as before. */}
       {showAction && (
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          {actionButton}
+        <div className="mt-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Recommended next step
+          </h3>
+          <p className="mt-1 text-sm font-semibold text-slate-900">
+            {nextAction.label}
+          </p>
+          {nextAction.description && (
+            <p className="mt-0.5 text-sm text-slate-500">
+              {nextAction.description}
+            </p>
+          )}
+          {actionButton && <div className="mt-2">{actionButton}</div>}
         </div>
       )}
 
@@ -146,8 +154,8 @@ export default function LeadInsights({
           the engine actually returned — nothing computed here. */}
       {reasons.length > 0 && (
         <ul className="mt-4 flex flex-wrap gap-2" aria-label="Influencing signals">
-          {reasons.map((reason) => (
-            <SignalItem key={reason} label={reason} />
+          {reasons.map((label) => (
+            <SignalItem key={label} label={label} />
           ))}
         </ul>
       )}
