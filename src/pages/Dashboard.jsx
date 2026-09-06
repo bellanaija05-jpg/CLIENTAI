@@ -11,6 +11,7 @@ import {
 import StatusBadge from '../components/leads/StatusBadge.jsx'
 import DashboardSummary from '../components/dashboard/DashboardSummary.jsx'
 import NeedsAttentionPanel from '../components/dashboard/NeedsAttentionPanel.jsx'
+import AISalesBrief from '../components/dashboard/AISalesBrief.jsx'
 import SalesWorkQueue from '../components/dashboard/SalesWorkQueue.jsx'
 import PipelineByStage from '../components/dashboard/PipelineByStage.jsx'
 import PanelError from '../components/dashboard/PanelError.jsx'
@@ -28,6 +29,10 @@ import {
   WORK_QUEUE_FOLLOW_UP_LIMIT,
   WORK_QUEUE_OPPORTUNITY_LIMIT,
 } from '../lib/leadIntelligence.js'
+import {
+  buildSalesBriefContext,
+  hasMeaningfulSalesSignals,
+} from '../lib/aiSalesBrief.js'
 
 // Shared card shell for the panels below, so they look identical
 // (title + "View all" link + body). Pure layout — no data logic.
@@ -226,6 +231,23 @@ export default function Dashboard() {
     refreshStamps()
   }
 
+  // --- AI Daily Sales Brief (Phase 8 Stage 4) — context derived from the
+  // SAME intelligence already computed above. The pure builder in
+  // lib/aiSalesBrief.js reshapes (never re-scores) those facts into the
+  // compact AI-safe payload; no new requests, no scoring logic here. The
+  // AI call itself only happens on an explicit user click inside the
+  // AISalesBrief component — never on render.
+  const salesBriefContext = buildSalesBriefContext({
+    todayKey,
+    metrics,
+    attentionItems,
+    followUpTasks,
+  })
+  const hasSalesSignals = hasMeaningfulSalesSignals({
+    attentionItems,
+    metrics,
+  })
+
   const firstName = profile?.full_name?.trim().split(/\s+/)[0]
 
   return (
@@ -252,6 +274,20 @@ export default function Dashboard() {
         error={attentionError}
         onRetry={retryAttentionData}
       />
+
+      {/* AI Daily Sales Brief (Phase 8 Stage 4) — the assistant's 2–4
+          sentence summary of the day, generated ONLY when the user clicks
+          Generate/Refresh Brief. Rendered once the CRM data is ready (a
+          failed data fetch is already reported by the panels above — the
+          brief must never summarize data it cannot see). Position: after
+          Today's Sales Focus (what matters), before Today's Sales Work
+          (the tasks themselves). */}
+      {!attentionIsLoading && !attentionError && (
+        <AISalesBrief
+          context={salesBriefContext}
+          hasSignals={hasSalesSignals}
+        />
+      )}
 
       {/* Today's Sales Work (Phase 8 Stage 2) — the daily work QUEUE next
           to the Focus panel above: concrete pending follow-ups + the

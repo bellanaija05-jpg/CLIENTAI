@@ -92,6 +92,35 @@ The engine is centralised and explainable: the same `computeLeadPriority()`
 drives the dashboard, Lead Details, and the Leads list, so priorities are
 always consistent.
 
+## AI Daily Sales Brief (Phase 8 Stage 4)
+
+A compact panel on the Dashboard (between Today's Sales Focus and Today's
+Sales Work) that turns the deterministic intelligence into a 2–4 sentence
+assistant briefing: what matters most today, what is overdue, and where to
+start. The AI only summarizes facts the engine already computed and ranked —
+it never decides priority and never invents information.
+
+- Generation is **user-triggered only** ("Generate Brief" / "Refresh
+  Brief") — never automatic, so it costs one AI request per explicit click.
+- A day with no meaningful signals shows a deterministic "all caught up"
+  message without spending an AI request.
+- Nothing is persisted; the brief is a disposable on-demand summary (no
+  new table or migration).
+- Context is built by the pure helper `src/lib/aiSalesBrief.js` from data
+  the Dashboard already loaded — no extra CRM requests.
+
+Setup: uses the **same** `AI_API_KEY` / `AI_MODEL` / `AI_API_BASE_URL`
+secrets as the follow-up generator. Deploy the additional function once:
+
+```bash
+supabase functions deploy generate-sales-brief
+# local development instead:
+supabase functions serve generate-sales-brief
+```
+
+Without the deployed function or `AI_API_KEY`, the Dashboard works
+normally and the brief shows a user-friendly error state.
+
 ## Production deployment
 
 A testing/learning-friendly checklist. The app is **frontend-only static
