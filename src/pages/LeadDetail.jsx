@@ -270,9 +270,6 @@ export default function LeadDetail() {
               <dl className="mt-4 space-y-3">
                 <Field label="Created">{formatDate(lead.created_at)}</Field>
                 <Field label="Updated">{formatDate(lead.updated_at)}</Field>
-                <Field label="Lead ID">
-                  <span className="break-all font-mono text-xs">{lead.id}</span>
-                </Field>
               </dl>
             </section>
           </div>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import Spinner from './Spinner.jsx'
 
 /**
@@ -6,13 +6,14 @@ import Spinner from './Spinner.jsx'
  * today; more later). Dependency-free: overlay + dialog card + busy
  * state. Renders nothing while closed.
  *
- * Accessibility (honestly scoped):
+ * Accessibility:
  *  - role="dialog", aria-modal, labelled + described by title/description
  *  - ESC and backdrop-click close it (ignored while a request is in
  *    flight, so a busy dialog cannot be dismissed mid-delete)
  *  - initial focus lands on Cancel — the non-destructive action
- *  - known limitation: no full focus trap (Tab can leave the dialog);
- *    noted for the a11y polish pass rather than faked with complexity
+ *  - minimal focus trap (launch a11y polish): Tab / Shift+Tab cycle
+ *    within the dialog, so keyboard users cannot tab into the page
+ *    behind the overlay — without pulling in a focus-trap dependency
  *
  * While isBusy is true, both buttons are disabled — a double-click can
  * never fire two delete requests.
@@ -28,12 +29,35 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }) {
-  // ESC-to-close. Registered unconditionally to keep hook order stable;
-  // the callback only runs when open && !isBusy.
+  const dialogRef = useRef(null)
+
+  // Keyboard handling. Registered unconditionally to keep hook order
+  // stable; the callback only runs when open && !isBusy.
   useEffect(() => {
     if (!open || isBusy) return
     function handleKeyDown(event) {
-      if (event.key === 'Escape') onCancel()
+      if (event.key === 'Escape') {
+        onCancel()
+        return
+      }
+      // Minimal focus trap: Tab wraps at the dialog's focusable edges.
+      if (event.key === 'Tab' && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll(
+          'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+        )
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        const active = document.activeElement
+        const inside = dialogRef.current.contains(active)
+        if (event.shiftKey && (!inside || active === first)) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && (!inside || active === last)) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
@@ -47,6 +71,7 @@ export default function ConfirmDialog({
       onClick={isBusy ? undefined : onCancel}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"

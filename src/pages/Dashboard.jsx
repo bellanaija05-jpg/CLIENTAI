@@ -261,7 +261,7 @@ export default function Dashboard() {
             ? `${profile.business_name} — here is where your CRM stands today.`
             : 'Here is where your CRM stands today.'}
         </p>
-            </header>
+      </header>
 
       {/* Today's Sales Focus is the Dashboard's primary actionable section.
           It reuses the SAME computed attention items (computeNeedsAttention +

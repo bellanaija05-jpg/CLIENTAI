@@ -17,8 +17,8 @@ const errorClass = 'mt-1 text-xs text-red-600'
 /**
  * Settings / account page (Phase 4 close-out).
  *
- * Shows the account facts the user cannot change (email, member since,
- * user id — all owned by Supabase auth / the signup trigger) and a
+ * Shows the account facts the user cannot change (email, member since —
+ * both owned by Supabase auth / the signup trigger) and a
  * small form for the two display fields the profiles table exists for
  * (full_name, business_name). The save goes through updateProfile and
  * the existing RLS UPDATE policy ("Users can update own profile") —
@@ -97,14 +97,6 @@ export default function Settings() {
                 </dt>
                 <dd className="text-slate-800">
                   {formatDate(profile.created_at)}
-                </dd>
-              </div>
-              <div className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-                <dt className="w-32 shrink-0 font-medium text-slate-500">
-                  User ID
-                </dt>
-                <dd className="break-all font-mono text-xs text-slate-500">
-                  {profile.id}
                 </dd>
               </div>
             </dl>

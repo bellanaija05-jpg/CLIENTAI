@@ -14,7 +14,7 @@ const features = [
   {
     title: 'AI-drafted follow-up messages',
     description:
-      'Generate a personalized follow-up in seconds, informed by your notes and pipeline context. (Coming soon.)',
+      'Generate a personalized follow-up in seconds, informed by your notes and pipeline context.',
   },
 ]
 

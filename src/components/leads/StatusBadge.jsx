@@ -1,3 +1,5 @@
+import { STATUS_LABELS } from '../../lib/schemas.js'
+
 // Color mapping for the six lead statuses (mirrors the DB enum in
 // migration 0002). A defensive fallback covers any value the map
 // doesn't know about — the status column is NOT NULL, but belt and
@@ -13,7 +15,13 @@ const STYLES = {
 
 /**
  * Small colored pill for a lead status. Pure presentation. Used on the
- * detail page now; the pipeline board (Phase 6) will reuse it.
+ * Lead Details header and the Leads table.
+ *
+ * Launch polish: renders the canonical human-readable label (via
+ * STATUS_LABELS — schemas.js's designated single source of status
+ * naming, already used by the Pipeline column headers), not the raw
+ * enum value — so the UI reads "New", not "NEW". The enum value stays
+ * the fallback for any unknown status.
  */
 export default function StatusBadge({ status }) {
   const styles =
@@ -23,7 +31,7 @@ export default function StatusBadge({ status }) {
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${styles}`}
     >
-      {status}
+      {STATUS_LABELS[status] ?? status}
     </span>
   )
 }
