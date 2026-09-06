@@ -25,3 +25,12 @@ export const ACTION_LABELS = {
   'add-activity': 'Add Activity',
   'generate-ai': 'Generate Follow-Up',
 }
+
+// Stage 5 (action layer): the handoff must be immediately obvious — a
+// real primary button, not a plain text link. Both dashboard panels
+// (Today's Sales Focus + Today's Sales Work) share this one style so the
+// app has ONE visual language for "this is the action to take now". It
+// mirrors the existing brand-600 solid button used across the app
+// (LeadInsights, LeadQuickActions, AI generator).
+export const ACTION_BUTTON_CLASSES =
+  'shrink-0 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600'

@@ -4,7 +4,11 @@ import { formatDateKey, formatValue } from '../../utils/format.js'
 import Spinner from '../ui/Spinner.jsx'
 import PanelError from './PanelError.jsx'
 import { STATUS_LABELS } from '../../lib/schemas.js'
-import { ACTION_LABELS, ACTION_ROUTES } from './actionRoutes.js'
+import {
+  ACTION_LABELS,
+  ACTION_ROUTES,
+  ACTION_BUTTON_CLASSES,
+} from './actionRoutes.js'
 
 // ---------------------------------------------------------------------------
 // Today's Sales Work (Phase 8 Stage 2)
@@ -99,11 +103,14 @@ function FollowUpTaskRow({ task }) {
         </p>
       </div>
 
+      {/* DO IT (Stage 5) — an obvious primary button into the lead's
+          EXISTING Follow-Ups section (same ?section= route as before). */}
       <Link
         to={`/leads/${task.lead_id}?section=follow-ups`}
-        className="shrink-0 self-start text-xs font-semibold text-brand-600 hover:text-brand-700 sm:self-center"
+        aria-label={`View follow-up for ${task.leadName}`}
+        className={`${ACTION_BUTTON_CLASSES} self-start sm:self-center`}
       >
-        View Follow-Up →
+        View Follow-Up
       </Link>
     </li>
   )
@@ -112,6 +119,8 @@ function FollowUpTaskRow({ task }) {
 // One actionable opportunity lead. Same navigation model as the Focus
 // panel: the engine's next-action kind maps to the existing Lead Details
 // section that owns the workflow (follow-ups, AI generator, activities).
+// Stage 5: the row also shows the engine's own recommended step, and the
+// handoff is an obvious primary button rather than a plain text link.
 function OpportunityRow({ item }) {
   const lead = item.lead
   const kind = item.nextAction?.kind
@@ -136,13 +145,21 @@ function OpportunityRow({ item }) {
           {STATUS_LABELS[lead.status] ?? lead.status}
           {Number(lead.value ?? 0) > 0 && <> · {formatValue(lead.value)}</>}
         </p>
+        {/* WHAT NEXT — the engine's own recommended step, unchanged. */}
+        {item.nextAction?.label && (
+          <p className="mt-1 text-sm font-medium text-slate-800">
+            Recommended: {item.nextAction.label}
+          </p>
+        )}
       </div>
 
+      {/* DO IT — the obvious primary action into the existing workflow. */}
       <Link
         to={actionRoute}
-        className="shrink-0 self-start text-xs font-semibold text-brand-600 hover:text-brand-700 sm:self-center"
+        aria-label={`${actionLabel} for ${lead.name}`}
+        className={`${ACTION_BUTTON_CLASSES} self-start sm:self-center`}
       >
-        {actionLabel} →
+        {actionLabel}
       </Link>
     </li>
   )

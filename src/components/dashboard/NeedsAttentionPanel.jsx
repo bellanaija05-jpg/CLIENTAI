@@ -4,13 +4,25 @@ import { formatValue } from '../../utils/format.js'
 import Spinner from '../ui/Spinner.jsx'
 import PanelError from './PanelError.jsx'
 import { STATUS_LABELS } from '../../lib/schemas.js'
-import { ACTION_LABELS, ACTION_ROUTES } from './actionRoutes.js'
+import {
+  ACTION_LABELS,
+  ACTION_ROUTES,
+  ACTION_BUTTON_CLASSES,
+} from './actionRoutes.js'
 
 // One lead row inside the Daily Sales Focus panel. PURE presentation —
 // the ranking, priority, reason, and next action were all computed by
 // the intelligence engine (computeNeedsAttention + computeNextAction)
 // in the page; this component only renders them and hands the user off
 // to the correct existing workflow.
+//
+// Stage 5 (action layer) — the row reads in the assistant's order:
+//   WHO      priority badge + lead name (+ status · value)
+//   WHY      the engine's reason (— detail)
+//   WHAT NEXT "Recommended: <engine's next action label>"
+//   DO IT    an obvious primary button into the EXISTING workflow
+// The button's route/label come from the shared ACTION_ROUTES /
+// ACTION_LABELS maps — no navigation logic lives here.
 function AttentionItem({ item }) {
   const lead = item.lead
   const value = Number(lead.value ?? 0)
@@ -27,7 +39,7 @@ function AttentionItem({ item }) {
 
   return (
     <li className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <PriorityBadge priority={item.priority} />
@@ -42,19 +54,25 @@ function AttentionItem({ item }) {
             {STATUS_LABELS[lead.status] ?? lead.status}
             {value > 0 && <> · {formatValue(value)}</>}
           </p>
-          <p className="mt-1.5 text-sm font-medium text-slate-800">
-            {action?.label ?? ''}
-          </p>
-          <p className="mt-0.5 text-xs text-slate-400">
+          {/* WHY — the engine's own words, unchanged. */}
+          <p className="mt-1.5 text-sm text-slate-700">
             {item.detail ? `${item.reason} — ${item.detail}` : item.reason}
           </p>
+          {/* WHAT NEXT — the engine's recommended next step. */}
+          {action?.label && (
+            <p className="mt-1 text-sm font-medium text-slate-800">
+              Recommended: {action.label}
+            </p>
+          )}
         </div>
 
+        {/* DO IT — the obvious primary action into the existing workflow. */}
         <Link
           to={actionRoute}
-          className="shrink-0 self-center text-xs font-semibold text-brand-600 hover:text-brand-700"
+          aria-label={`${actionLabel} for ${lead.name}`}
+          className={`${ACTION_BUTTON_CLASSES} self-start sm:self-center`}
         >
-          {actionLabel} →
+          {actionLabel}
         </Link>
       </div>
     </li>
