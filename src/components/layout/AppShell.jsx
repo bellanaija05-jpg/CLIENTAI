@@ -80,6 +80,12 @@ export default function AppShell() {
       </header>
 
       <Outlet />
+
+      {/* Subtle builder attribution — pure presentation, shared by every
+          authenticated page. Mirrors the landing footer's muted styling. */}
+      <footer className="border-t border-slate-200 py-4 text-center text-xs text-slate-400">
+        Built by Pius
+      </footer>
     </div>
   )
 }
